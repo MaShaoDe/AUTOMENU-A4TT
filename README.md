@@ -1,167 +1,169 @@
 # AUTOMENU-for-the-Things---A4TT
 
-Automenu for the Things ist ein plattformunabhängiges, textbasiertes Menüsystem für technische Geräte und Systeme.  
-Es bietet eine einheitliche Benutzerführung über serielle Konsolen, Telnet und klassische Unix Terminals, ohne Webserver, ohne Browser und ohne grafische Oberflächen.
+Automenu for the Things is a platform-independent, text-based menu system for technical devices and systems.  
+It provides a consistent user interface over serial consoles, Telnet connections and classic Unix terminals, without web servers, browsers or graphical user interfaces.
 
-Das Projekt ist bewusst in der Tradition klassischer Auto-Menü-Systeme und Unix Werkzeuge gedacht, technisch jedoch modern umgesetzt.
+The project is inspired by classic Auto-Menu systems and traditional Unix tools, but implemented with a clean and modern architecture.
 
 ---
 
 ## Motivation
 
-Viele Geräte und Tools benötigen einfache, robuste Bedienoberflächen für:
+Many devices and tools require simple and reliable interfaces for:
 
-- Konfiguration
-- Statusanzeigen
-- Debugging
-- Wartung
-- Steuerung
+- configuration
+- status display
+- debugging
+- maintenance
+- control
 
-Web-UIs sind dafür oft unnötig komplex, ressourcenintensiv und kurzlebig.  
-Automenu setzt stattdessen auf Klartext, Tastaturbedienung und minimale Abhängigkeiten.
-
----
-
-## Grundprinzipien
-
-- Identisches Outfit und identische Bedienung auf allen Plattformen
-- Strikte Trennung von Darstellung, Logik und Konfiguration
-- Menüstruktur vollständig konfigurationsgetrieben
-- Keine Sicherheitslogik auf Menüebene
-- Konfiguration ist sichtbar, editierbar und rücksetzbar
-- Alles ist reparierbar, nichts endgültig kaputt
-
-Wer Terminalzugang hat, ist berechtigt.
+Web-based interfaces are often unnecessarily complex, resource-heavy and short-lived.  
+Automenu focuses instead on clarity, keyboard control and minimal dependencies.
 
 ---
 
-## Unterstützte Plattformen
+## Core Principles
 
-- ESP32 über serielle Konsole
-- ESP32 über Telnet
-- macOS Terminal
-- Linux Terminal
-- FreeBSD Terminal
+- Identical look and behavior across all platforms
+- Strict separation of rendering, logic and configuration
+- Menu structure fully driven by configuration files
+- No security logic at menu level
+- Configuration is visible, editable and recoverable
+- Everything can be repaired, nothing is permanently broken
 
-Alle Plattformen nutzen denselben Core. Unterschiede bestehen nur in der IO-Anbindung.
+If you have terminal access, you are considered authorized.
 
 ---
 
-## Architekturüberblick
+## Supported Platforms
 
-Automenu besteht aus vier klar getrennten Schichten:
+- ESP32 via serial console
+- ESP32 via Telnet
+- macOS terminal
+- Linux terminal
+- FreeBSD terminal
 
-1. IO-Abstraktion  
-   Serial, Telnet, stdin und stdout
+All platforms use the same core engine. Differences exist only in the IO layer.
+
+---
+
+## Architecture Overview
+
+Automenu is built from four clearly separated layers:
+
+1. IO Abstraction  
+   Serial, Telnet, stdin and stdout
 
 2. Core Engine  
-   Navigation, Zustände, Menü-Stack, Paging
+   Navigation, state handling, menu stack, paging
 
 3. Renderer  
-   Darstellung, Rahmen, Farben, Statuszeilen
+   Layout, frames, colors, status lines
 
-4. Konfiguration  
-   Menüstruktur und Display getrennt
+4. Configuration  
+   Menu structure and display configuration are separate
 
-Keine Plattform kennt UI-Details. Kein Renderer kennt Plattformen.
-
----
-
-## Menüsystem
-
-- Automatisch generierte Menüs aus Konfigurationsdateien
-- Unterstützung für Untermenüs und Aktionen
-- Paging bei langen Menüs
-- Konsistente Tastaturbedienung
-- Rückkehr aus Aktionen immer mit der Space-Taste
-- Zustandsverwaltung über Stack
-
-Aktionen sind logisch getrennt von der Darstellung.
+No platform knows UI details.  
+No renderer knows platform specifics.
 
 ---
 
-## Konfiguration
+## Menu System
 
-Es existieren mindestens zwei Konfigurationsdateien:
+- Menus are generated automatically from configuration files
+- Support for submenus and actions
+- Automatic paging for long menus
+- Consistent keyboard navigation
+- Actions always return using the SPACE key
+- State handling based on a stack model
 
-- Menü-Konfiguration  
-  Beschreibt, welche Menüs und Funktionen existieren
-
-- Display-Konfiguration  
-  Beschreibt Farben, Profile, Verhalten und Darstellung
-
-Zusätzlich existiert immer eine Factory-Default-Konfiguration als Rettungsanker.
-
-Beim Speichern wird die bestehende Benutzerkonfiguration automatisch als `.bak` gesichert.
+Actions are logically separated from rendering.
 
 ---
 
-## Display Profile
+## Configuration
 
-Automenu unterstützt vordefinierte Anzeigeprofile, zum Beispiel:
+At least two configuration files are used:
+
+- Menu configuration  
+  Defines which menus and functions exist
+
+- Display configuration  
+  Defines colors, profiles and rendering behavior
+
+A factory default configuration always exists as a recovery anchor.
+
+When saving changes, the existing user configuration is automatically backed up as `.bak`.
+
+---
+
+## Display Profiles
+
+Automenu supports predefined display profiles, for example:
 
 - VT100 Green
 - Amber Terminal
 - Classic Mono
 - Modern Auto
 
-Profile definieren Hintergrund, Textfarben und Hervorhebungen.  
-Farben können erzwungen oder an Terminal-Defaults angepasst werden.
+Profiles define background, text colors and highlights.  
+Colors can be forced or aligned with terminal defaults.
 
 ---
 
-## Konfiguration im Menü
+## Configuration via Menu
 
-Alle relevanten Einstellungen können direkt im Automenu geändert werden:
+All relevant settings can be modified directly inside Automenu:
 
-- Werte anpassen
-- Optionen ein oder ausschalten
-- Display-Profile wechseln
-- Konfiguration speichern oder verwerfen
+- Change values
+- Enable or disable options
+- Switch display profiles
+- Save or discard configuration
 
-Es gibt keine künstlichen Einschränkungen.
+No artificial restrictions are imposed.
 
 ---
 
 ## The Way Out
 
-Was im Menü kaputtgemacht werden kann, muss ausserhalb des Menüs reparierbar sein.
+Anything that can be broken from inside the menu must be repairable from outside.
 
-Automenu unterstützt deshalb Startparameter, die immer Vorrang haben:
+Automenu therefore supports startup parameters that always take precedence:
 
-- `--default` oder `--factory`
+- `--default` or `--factory`
 - `--reset`
 - `--config`
 - `--safe`
 - `--profile <name>`
 
-Diese Mechanismen können nicht durch Konfiguration deaktiviert werden.
+These mechanisms cannot be disabled by configuration.
 
-Auf Embedded-Systemen existieren äquivalente Boot- oder Eingabemechanismen.
+On embedded systems, equivalent boot or input triggers are provided.
 
 ---
 
 ## Unix Integration
 
-Automenu ist ein klassisches Unix Werkzeug:
+Automenu is a classic Unix-style tool:
 
-- Source-basiert
+- Source-based
 - `make`, `make install`, `make clean`
-- FreeBSD Port
-- macOS Installation über Homebrew oder MacPorts
-- Man-Pages als primäres Handbuch
+- FreeBSD port
+- macOS installation via Homebrew or MacPorts
+- Man pages as the primary documentation
 
-Man-Pages bilden das vollständige technische Manual.
-
----
-
-## Projektstatus
-
-Das Projekt befindet sich im Aufbau.  
-Ziel ist ein stabiler, minimaler Core mit klarer Dokumentation.
+Man pages form the complete technical manual.
 
 ---
 
-## Lizenz
+## Project Status
 
-Wird festgelegt. Eine permissive Lizenz ist vorgesehen.
+The project is in early development.  
+The goal is a stable, minimal core with clear documentation.
+
+---
+
+## License
+
+To be defined.  
+A permissive open-source license is intended.
