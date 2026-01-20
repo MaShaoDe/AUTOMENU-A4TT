@@ -1,4 +1,4 @@
-# AUTOMENU-for-the-Things---A4TT
+# AUTOMENU for the Things A4TT
 
 Automenu for the Things is a platform-independent, text-based menu system for technical devices and systems.  
 It provides a consistent user interface over serial consoles, Telnet connections and classic Unix terminals, without web servers, browsers or graphical user interfaces.
