@@ -1,4 +1,5 @@
 # Automenu for the Things
+### by Marcel Sauder 2026
 
 Automenu for the Things is a small, portable, text-based menu system designed for embedded devices and Unix-like systems.
 

@@ -1,5 +1,5 @@
 //
-//  automen.h
+//  automenu.h
 //  
 //
 //  Created by Marcel Sauder on 21.01.2026.

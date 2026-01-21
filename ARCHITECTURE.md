@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 ## Automenu – Architecture Status v0.1.0
-## by Marcel Sauder 2026
+### by Marcel Sauder 2026
 ### Purpose
 
 Automenu is a platform-neutral menu and control framework designed for
