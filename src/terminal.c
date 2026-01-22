@@ -11,8 +11,9 @@
 #include <ctype.h>
 #include <termios.h>
 #include <unistd.h>
-#include "config_loader.h"
+
 #include "core.h"
+#include "config_loader.h"
 
 /* ---------- raw mode handling ---------- */
 
@@ -45,7 +46,7 @@ static void render(core_t *core)
     const menu_view_t *view = core_get_current_menu(core);
     if (!view) return;
 
-    write(STDOUT_FILENO, "\033[2J\033[H", 7); // clear screen safely
+    write(STDOUT_FILENO, "\033[2J\033[H", 7); /* clear screen */
 
     printf("%s\n", view->title);
     printf("------------\n");
@@ -81,7 +82,7 @@ int main(int argc, char **argv)
     menu_t *menus = NULL;
     size_t menu_count = 0;
 
-    if (!config_load_from_file(argv[1], &menus, &menu_count)) {
+    if (!load_menu_config(argv[1], &menus, &menu_count)) {
         fprintf(stderr, "Failed to load config: %s\n", argv[1]);
         core_destroy(core);
         return 1;
@@ -89,10 +90,9 @@ int main(int argc, char **argv)
 
     if (!core_load(core, menus, menu_count, "main")) {
         fprintf(stderr, "Core load failed\n");
-        config_free(menus, menu_count);
+        free_menu_config(menus, menu_count);
         core_destroy(core);
         return 1;
-
     }
 
     render(core);
@@ -136,6 +136,7 @@ int main(int argc, char **argv)
         render(core);
     }
 
+    free_menu_config(menus, menu_count);
     core_destroy(core);
     return 0;
 }
