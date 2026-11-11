@@ -23,7 +23,7 @@ Der Bildschirm hat einen Rahmen, einen roten Titelbalken, die Einträge in Grün
 | `AUTOMENU_COLORS=256` | 256 Farben erzwingen (Normalfall in Terminal und iTerm2) |
 | `AUTOMENU_COLORS=16` | nur die 16 Grundfarben (sehr alte Terminals) |
 | `AUTOMENU_FRAME=solid` | Rahmen aus türkisen Farbflächen, geht mit jeder Schrift (Standard) |
-| `AUTOMENU_FRAME=lines` | Doppellinien wie im Mockup, braucht eine Schrift mit Linienzeichen (zum Beispiel Menlo) |
+| `AUTOMENU_FRAME=lines` | feine Doppellinien wie auf den Screenshots im README, braucht eine Schrift mit Linienzeichen (zum Beispiel Menlo) |
 | `AUTOMENU_FRAME=ascii` | Rahmen aus `+ - \|` |
 
 Dauerhaft setzt du sie in `~/.bashrc`, zum Beispiel `export AUTOMENU_FRAME=lines`.
@@ -73,7 +73,7 @@ Getestet auf macOS Golden Gate 27.2 mit dem Terminal von macOS (Apple Silicon, b
    `cp examples/menu.txt ~/.config/automenu/menu.txt`
 7. **Prüfen und starten:** neues Terminalfenster öffnen (oder `hash -r`), dann `automenu --version` und `automenu`.
 
-**Terminal für die Darstellung wie im Mockup einstellen**
+**Terminal für die Darstellung wie auf den Screenshots einstellen**
 
 - Terminal, Einstellungen, Profile, Reiter **Erweitert**, "Terminal angeben": **xterm-256color**. Gilt nur für neue Fenster. Mit `echo $TERM` prüfen.
 - Reiter **Text**, Schrift **Ändern…**: **Menlo Regular**. Diese Schrift hat die Linienzeichen für den Doppelrahmen.
@@ -196,7 +196,7 @@ Mach das Skript vorher ausführbar: `chmod +x ~/bin/backup.sh`.
 
 ## 6. Gute Gewohnheiten
 
-- Höchstens 7 Einträge pro Menü: dann hat jeder Eintrag eine Leerzeile dazwischen wie im Mockup (bei mehr Einträgen rücken sie ohne Leerzeilen zusammen). Bei bis zu 9 funktionieren die Zifferntasten für alle, bei mehr scrollt die Liste ohne Leerzeilen.
+- Höchstens 7 Einträge pro Menü: dann hat jeder Eintrag eine Leerzeile dazwischen (bei mehr Einträgen rücken sie ohne Leerzeilen zusammen). Bei bis zu 9 funktionieren die Zifferntasten für alle, bei mehr scrollt die Liste ohne Leerzeilen.
 - Lieber mehrere kleine Untermenüs als ein langes Menü.
 - Immer einen `back`-Eintrag am Ende jedes Untermenüs.
 - Erst `--check`, dann starten.

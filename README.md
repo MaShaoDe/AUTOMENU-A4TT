@@ -73,10 +73,10 @@ Für den ESP32 wird später nur `terminal.c` ersetzt. Kern und Loader bleiben.
 |---|---|---|
 | 0.2 | Menüs, Untermenüs, Befehle ausführen, Info-Texte, Prüfmodus | fertig |
 | 0.2.1 | Installation: Makefile, feste Pfade, Man-Page, Port-Gerüst | fertig, Port ungetestet |
-| 0.3.0 | Darstellung wie im Mockup: Rahmen, Farben, Beschreibungsleiste, Uhr, Hilfe | fertig |
+| 0.3.0 | Darstellung im Stil der Auto-Menu-Programme: Rahmen, Farben, Beschreibungsleiste, Uhr, Hilfe | fertig |
 | 0.3.1 | Rahmen füllt das Fenster und passt sich sofort an, feste 256-Farben-Palette | fertig |
 | 0.3.2 | Farberkennung auch bei TERM=vt100, Umschalter für Farben und Rahmen | fertig |
-| 0.3.3 | Einträge oben und kompakt wie im Mockup | fertig |
+| 0.3.3 | Einträge kompakt, mit einer Leerzeile dazwischen | fertig |
 | 0.3.4 | Versionsnummer am Rand, Einträge wieder ungefähr mittig | fertig |
 | 0.3.5 | Rahmen aus Farbflächen als Standard, funktioniert mit jeder Schrift | fertig |
 | 0.4 | ESP32-Adapter (serielle Konsole) | offen |
