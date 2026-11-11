@@ -1,0 +1,4 @@
+/automenu
+/test_all
+*.o
+.DS_Store

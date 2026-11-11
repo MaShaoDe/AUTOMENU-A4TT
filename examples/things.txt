@@ -1,0 +1,18 @@
+# Nachbau des Mockups "Automenu for the Things".
+# Zweiter Text in Anführungszeichen = Hilfetext in der grauen Leiste.
+
+menu sensors "Automenu for the Things"
+  item "General Sensor Overview"   "Access detailed sensor data and configurations"   info Noch kein Sensor angeschlossen.
+  item "Temperature Readings"      "Show all temperature sensors"                     info Noch kein Sensor angeschlossen.
+  item "Humidity Levels"           "Show all humidity sensors"                        info Noch kein Sensor angeschlossen.
+  item "Motion Detectors & Presence"  "Show motion and presence detectors"            info Noch kein Sensor angeschlossen.
+  item "Analog Inputs & Voltage"   "Read analog inputs"                               info Noch kein Sensor angeschlossen.
+  item "Digital Inputs & GPIO"     "Read digital inputs and GPIO pins"                info Noch kein Sensor angeschlossen.
+  item "System Menu"               "Manage system outputs and maintenance"            menu system
+
+menu system "Automenu for the Things"
+  item "Network Settings"          "Show network interfaces"                          run ifconfig 2>/dev/null || ip addr
+  item "System Logs"               "Show the last system messages"                    run dmesg | tail -20
+  item "Diagnostics"               "Show uptime and load"                             run uptime
+  item "Disk Space"                "Show free disk space"                             run df -h
+  item "Back"                      "Back to the sensors"                              back

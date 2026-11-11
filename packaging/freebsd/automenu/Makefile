@@ -1,0 +1,18 @@
+PORTNAME=	automenu
+DISTVERSIONPREFIX=	v
+DISTVERSION=	0.3.5
+CATEGORIES=	misc
+
+MAINTAINER=	CHANGEME@FreeBSD.org
+COMMENT=	Text menu in the style of 1980s Auto-Menu systems
+WWW=		https://github.com/MaShaoDe/AUTOMENU-A4TT
+
+LICENSE=	BSD2CLAUSE
+
+USE_GITHUB=	yes
+GH_ACCOUNT=	MaShaoDe
+GH_PROJECT=	AUTOMENU-A4TT
+
+MAKE_ARGS=	PREFIX=${PREFIX} SYSCONFDIR=${PREFIX}/etc
+
+.include <bsd.port.mk>

@@ -1,0 +1,3 @@
+Automenu shows a text menu that is read from a plain configuration file.
+A key press opens a submenu, shows a text or runs a command.
+It is modelled after the Auto-Menu programs of the CP/M and MS-DOS era.

@@ -1,200 +1,79 @@
-# Automenu for the Things
+# Automenu
 
-### by Marcel Sauder, 2026
+Ein Textmenü wie damals unter CP/M und MS-DOS. Du schreibst eine Textdatei,
+das Programm zeigt daraus ein Menü, und ein Tastendruck startet einen Befehl.
 
-Automenu is a small, deterministic menu framework for terminal-based and embedded environments.
+Ziele in dieser Reihenfolge: MacBook (Terminal), Linux-Distributionen, FreeBSD, danach ESP32 und weitere Things.
 
-At its core is a platform-independent state machine that processes input events and exposes the current menu state as well as triggered actions. Rendering, input handling, IO and configuration formats are deliberately kept outside of the core and are implemented via adapters.
+| Plattform | Stand |
+|---|---|
+| Linux | gebaut und getestet |
+| macOS | gebaut und getestet auf macOS Golden Gate 27.2 (Terminal, Apple Silicon), siehe COOKBOOK.md |
+| FreeBSD | nur Standard-C und POSIX, noch nicht dort getestet |
+| ESP32 | geplant (0.4) |
 
-The project is designed so that the core remains testable, predictable and independent of the target platform.
+## Starten
 
-## Features
+    make
+    ./automenu examples/menu.txt
 
-* platform-independent, deterministic menu core
-* strict separation of core logic, configuration and adapters
-* support for submenus and hierarchical navigation
-* actions triggered via explicit string identifiers
-* navigation via cursor movement and direct index selection
-* no IO, rendering or parsing logic inside the core
-* strict configuration validation with line-numbered error messages
-* optional hidden hard exit for development environments
-* suitable for FreeBSD, Linux, macOS and embedded targets such as ESP32
+Bedienung: Pfeiltasten und Enter, Ziffern 1 bis 9 direkt, Esc geht zurück, H zeigt die Hilfe.
 
-## Project Structure
+Das Aussehen folgt dem Mockup in `docs/mockups`. Probiere `./automenu examples/things.txt`.
 
-include/core.h
-Public core API
+## Installieren
 
-src/core/core.c
-Menu core implementation (state machine)
+| System | Befehl |
+|---|---|
+| Linux, macOS | `sudo make install` (nach `/usr/local`) |
+| ohne Admin-Rechte | `make install PREFIX=$HOME/.local` |
+| FreeBSD | Port oder Package, siehe `packaging/freebsd/README.txt` |
+| macOS Schritt für Schritt | COOKBOOK.md, Abschnitt 2 |
 
-src/config_loader.c
-Menu configuration loader and validator
+Danach: Menü nach `~/.config/automenu/menu.txt` legen, dann startet `automenu` ohne Argument.
+Alle Pfade stehen im Cookbook unter "Wo liegt was".
 
-src/action_dispatcher.c
-Action dispatcher (maps action IDs to behaviour)
+## Menü selbst bauen
 
-src/terminal.c
-Terminal adapter (input, rendering, policy)
+Siehe **COOKBOOK.md**. Ein Eintrag besteht aus einer Zeile:
 
-## Build and Modes
+    menu start "Mein Menü"
+      item "Datum anzeigen"   run date
+      item "Beenden"          exit
 
-Automenu intentionally uses a minimal build process without a build system.
+## Aufbau
 
-### Development / Desktop Mode
+| Datei | Aufgabe |
+|---|---|
+| `src/menu.h` | Datenmodell |
+| `src/core.c` | Menülogik, kein IO, später auch auf dem ESP32 nutzbar |
+| `src/loader.c` | liest und prüft die Menüdatei |
+| `src/terminal.c` | Tasten, Bildschirm, Befehle ausführen (nur Mac/Linux) |
+| `tests/test_all.c` | Tests (`make test`) |
+| `Makefile` | bauen, testen, installieren |
+| `man/automenu.1` | Man-Page |
+| `packaging/freebsd/` | Port-Gerüst |
+| `examples/` | Beispielmenüs |
 
-This mode is intended for development, debugging and interactive terminal usage.
+Für den ESP32 wird später nur `terminal.c` ersetzt. Kern und Loader bleiben.
 
-Characteristics:
+## Fahrplan
 
-* menu-based soft exit via `exit`
-* additional hidden hard exit via the secret key sequence `.q`
-* suitable for FreeBSD, Linux and macOS
+| Version | Inhalt | Stand |
+|---|---|---|
+| 0.2 | Menüs, Untermenüs, Befehle ausführen, Info-Texte, Prüfmodus | fertig |
+| 0.2.1 | Installation: Makefile, feste Pfade, Man-Page, Port-Gerüst | fertig, Port ungetestet |
+| 0.3.0 | Darstellung wie im Mockup: Rahmen, Farben, Beschreibungsleiste, Uhr, Hilfe | fertig |
+| 0.3.1 | Rahmen füllt das Fenster und passt sich sofort an, feste 256-Farben-Palette | fertig |
+| 0.3.2 | Farberkennung auch bei TERM=vt100, Umschalter für Farben und Rahmen | fertig |
+| 0.3.3 | Einträge oben und kompakt wie im Mockup | fertig |
+| 0.3.4 | Versionsnummer am Rand, Einträge wieder ungefähr mittig | fertig |
+| 0.3.5 | Rahmen aus Farbflächen als Standard, funktioniert mit jeder Schrift | fertig |
+| 0.4 | ESP32-Adapter (serielle Konsole) | offen |
 
-Build command:
+## Regeln, damit das Projekt klein bleibt
 
-cc -DALLOW_HARD_EXIT -Iinclude 
-src/core/core.c 
-src/config_loader.c 
-src/action_dispatcher.c 
-src/terminal.c 
--o automenu
-
-### Kiosk / Embedded Mode
-
-This mode is intended for closed systems where leaving the program must be explicitly controlled.
-
-Characteristics:
-
-* no hidden hard exit
-* exit only possible if explicitly defined in the menu
-* suitable for kiosk systems and embedded targets such as ESP32
-
-Build command:
-
-cc -Iinclude 
-src/core/core.c 
-src/config_loader.c 
-src/action_dispatcher.c 
-src/terminal.c 
--o automenu
-
-## Usage
-
-./automenu menu.txt
-
-## Terminal Controls
-
-* Arrow Up / Arrow Down
-  Move the cursor
-
-* Enter
-  Select current menu item
-
-* 1–9
-  Direct menu item selection
-
-* .q
-  Hidden hard exit (development mode only)
-
-Exit behaviour depends on both the build mode and the menu definition.
-
-## Menu Model
-
-Menu items are explicitly typed and carry a clear semantic meaning.
-
-* action
-  Triggers an action via the action dispatcher
-
-* submenu
-  Enters a submenu
-
-* back
-  Returns to the previous menu
-
-* exit
-  Requests a controlled program exit
-
-* info
-  Displays informational text without changing menu state
-
-## Architecture Overview
-
-Automenu follows a strict separation of responsibilities.
-
-### Core
-
-The core is a pure state machine. It processes input events and updates menu state accordingly.
-
-The core deliberately contains no assumptions about:
-
-* input devices
-* rendering
-* operating systems
-* hardware
-
-This makes the core deterministic, portable and easy to test.
-
-### Configuration Loader
-
-The configuration loader parses menu definitions from a text file and validates them strictly.
-
-Validation includes:
-
-* syntax checking
-* duplicate menu detection
-* submenu reference validation
-
-On error, loading is aborted with a clear message including the line number.
-
-### Terminal Adapter
-
-The terminal adapter is responsible for:
-
-* reading input
-* rendering menus
-* displaying actions and info items
-* defining runtime policies
-
-Exit behaviour is intentionally defined here, not in the core.
-
-### Action Dispatcher
-
-The action dispatcher is the only component that assigns meaning to action identifiers.
-
-It maps string-based action IDs to concrete behaviour. This keeps the core completely neutral.
-
-## Exit Behaviour
-
-Automenu distinguishes between two exit mechanisms.
-
-* Soft Exit
-  Triggered via a menu item of type `exit`
-
-* Hard Exit
-  Triggered via a secret key sequence `.q`
-
-The hard exit:
-
-* is not visible in menus
-* is not part of the configuration
-* is controlled at compile time
-* exists only in the adapter layer
-
-This allows the same codebase to support both open development systems and locked-down kiosk environments.
-
-## Configuration
-
-Menus are defined declaratively in a text-based configuration file.
-
-The configuration language is intentionally strict and non-tolerant of errors. Invalid configurations are rejected early and explicitly.
-
-## Project Status
-
-The architecture and core behaviour are frozen.
-
-Current version: v0.1.0
-
-## License
-
-See LICENSE.
+1. Pro Version genau 1 neue Sache.
+2. Erst Code mit Test, dann höchstens 3 Zeilen Doku.
+3. Doku gibt es nur in `README.md` und `COOKBOOK.md`.
+4. Alte Entwürfe stehen nur noch in der Git-Historie (Stand 0.1.0) und werden nicht weitergepflegt.

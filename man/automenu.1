@@ -1,0 +1,82 @@
+.Dd November 11, 2026
+.Dt AUTOMENU 1
+.Os
+.Sh NAME
+.Nm automenu
+.Nd Textmenü im Stil der Auto-Menu-Systeme der 1980er Jahre
+.Sh SYNOPSIS
+.Nm
+.Op Ar datei
+.Nm
+.Fl \-check
+.Op Ar datei
+.Nm
+.Fl \-version
+.Sh DESCRIPTION
+.Nm
+zeigt ein Menü, das aus einer Textdatei gelesen wird.
+Ein Tastendruck öffnet ein Untermenü, zeigt einen Text oder führt einen Befehl aus.
+.Pp
+Bedienung: Pfeiltasten und Enter, die Ziffern 1 bis 9 wählen einen Eintrag direkt,
+Esc oder Backspace gehen ein Menü zurück, Ctrl-C beendet das Programm.
+.Pp
+Ohne
+.Ar datei
+wird die erste vorhandene Datei aus der Liste unter
+.Sx FILES
+verwendet.
+.Pp
+Mit
+.Fl \-check
+wird die Datei nur geprüft.
+Fehler werden mit Zeilennummer gemeldet.
+.Sh FILES
+Reihenfolge der Suche:
+.Bl -tag -width Ds
+.It Pa $XDG_CONFIG_HOME/automenu/menu.txt
+.It Pa ~/.config/automenu/menu.txt
+.It Pa PREFIX/etc/automenu/menu.txt
+Systemweite Vorgabe.
+.It Pa PREFIX/etc/automenu/menu.txt.sample
+Beispiel, wird bei der Installation angelegt.
+.It Pa PREFIX/share/examples/automenu/
+Weitere Beispiele.
+.El
+.Sh FILE FORMAT
+Eine Zeile pro Eintrag.
+Leere Zeilen und Zeilen, die mit
+.Ql #
+beginnen, werden ignoriert.
+Das erste Menü der Datei ist das Startmenü.
+.Bl -tag -width Ds
+.It Cm menu Ar id Qq Titel
+Beginnt ein neues Menü.
+.It Cm item Qq Text Cm run Ar befehl
+Führt den Befehl mit
+.Xr sh 1
+aus.
+.It Cm item Qq Text Cm menu Ar id
+Öffnet ein anderes Menü.
+.It Cm item Qq Text Cm info Op Ar text
+Zeigt einen Text an.
+.It Cm item Qq Text Cm back
+Geht zurück.
+.It Cm item Qq Text Cm exit
+Beendet das Programm.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev XDG_CONFIG_HOME
+Ort der Benutzerkonfiguration, Vorgabe
+.Pa ~/.config .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Bd -literal -offset indent
+menu start "Mein Menü"
+  item "Datum"    run date
+  item "Beenden"  exit
+.Ed
+.Sh AUTHORS
+.An Marcel Sauder

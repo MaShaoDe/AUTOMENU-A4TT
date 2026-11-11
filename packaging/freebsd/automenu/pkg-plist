@@ -1,0 +1,7 @@
+bin/automenu
+@dir etc/automenu
+@sample etc/automenu/menu.txt.sample
+share/examples/automenu/ham.txt
+share/examples/automenu/menu.txt
+share/examples/automenu/things.txt
+share/man/man1/automenu.1.gz

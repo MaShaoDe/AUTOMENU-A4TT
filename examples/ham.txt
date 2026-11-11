@@ -1,0 +1,8 @@
+# Beispiel für den Funkraum. Anpassen nach Belieben.
+
+menu start "Funkraum"
+  item "UTC-Zeit"              run date -u
+  item "Kalender"                run cal
+  item "Netzwerk prüfen"       run ping -c 3 1.1.1.1
+  item "Logbuch öffnen"        run ${EDITOR:-vi} ~/logbuch.txt
+  item "Beenden"               exit
