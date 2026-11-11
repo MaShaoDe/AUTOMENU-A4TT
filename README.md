@@ -19,7 +19,17 @@ Ziele in dieser Reihenfolge: MacBook (Terminal), Linux-Distributionen, FreeBSD, 
 
 Bedienung: Pfeiltasten und Enter, Ziffern 1 bis 9 direkt, Esc geht zurück, H zeigt die Hilfe.
 
-Das Aussehen folgt dem Mockup in `docs/mockups`. Probiere `./automenu examples/things.txt`.
+Probiere auch `./automenu examples/things.txt`.
+
+## So sieht es aus
+
+Terminal von macOS, Schrift Menlo, `AUTOMENU_FRAME=lines`.
+
+![Hauptmenü](docs/screenshots/hauptmenue.png)
+
+![Untermenü](docs/screenshots/untermenue.png)
+
+![Hilfe mit der Taste H](docs/screenshots/hilfe.png)
 
 ## Installieren
 
