@@ -7,13 +7,14 @@ Rezepte für eigene Menüs. Du brauchst nur einen Texteditor.
 Läuft auf macOS, Linux und FreeBSD. Gebraucht wird nur ein C-Compiler (`cc`): auf dem Mac `xcode-select --install`, unter FreeBSD ist er dabei, unter Linux z.B. `sudo apt install build-essential`.
 
     make                             # normale Version
-    make kiosk                       # Kiosk-Version: Ctrl-C tut nichts
+    make kiosk                       # Version, die immer im Kiosk-Modus läuft
     make test                        # Tests
     ./automenu mein_menu.mdf         # Menü starten
     ./automenu --check mein_menu.mdf # Datei nur prüfen, ohne Menü zu starten
+    ./automenu --kiosk mein_menu.mdf # Kiosk-Modus: Ctrl-C beendet nicht
     ./automenu                       # ohne Datei: Standardpfade (siehe unten)
 
-Tasten: Pfeil hoch/runter und Enter, Ziffern 1 bis 9 springen direkt zum Eintrag und führen ihn aus, Esc oder Backspace gehen ein Menü zurück, H zeigt die Hilfe, Ctrl-C beendet (nicht in der Kiosk-Version).
+Tasten: Pfeil hoch/runter und Enter, Ziffern 1 bis 9 springen direkt zum Eintrag und führen ihn aus, Esc oder Backspace gehen ein Menü zurück, H zeigt die Hilfe, Ctrl-C beendet (nicht im Kiosk-Modus).
 
 Der Bildschirm hat einen Rahmen, einen roten Titelbalken, die Einträge in Grün, eine graue Leiste mit dem Hilfetext des gewählten Eintrags und unten Datum, Uhrzeit und `benutzer@rechner`. Unter dem Rahmen steht rechts die Programmversion. Oben rechts steht "MENÜ 1 VON 2" (Position des Menüs in der Datei). Der Rahmen füllt das ganze Terminalfenster und passt sich sofort an, wenn du das Fenster vergrösserst oder die Schrift mit Cmd und + grösser stellst. Mindestgrösse: 60 x 16. Die Darstellung lässt sich mit Umgebungsvariablen umstellen:
 
@@ -150,7 +151,7 @@ Ablauf: Eintrag wählen, Fenster "Passwort" erscheint, Eingabe zeigt Sternchen. 
 
 Geschützt wird immer nur der einzelne Eintrag, nie ein ganzes Menü. Wer ein Untermenü schützen will, sperrt den Eintrag, der dorthin führt. Mehrere Passwörter mit verschiedenen Namen sind möglich.
 
-Ehrlich gesagt: Das ist eine Sperre gegen Neugierige und Versehen. Wer die Datei lesen kann, kann den Befehl auch direkt in der Shell ausführen. Sinnvoll ist der Schutz zusammen mit der Kiosk-Version (`make kiosk`) oder auf dem ESP32. Die Datei sollte nur für dich lesbar sein: `chmod 600 menu.mdf`.
+Ehrlich gesagt: Das ist eine Sperre gegen Neugierige und Versehen. Wer die Datei lesen kann, kann den Befehl auch direkt in der Shell ausführen. Sinnvoll ist der Schutz zusammen mit dem Kiosk-Modus (`automenu --kiosk`) oder auf dem ESP32. Die Datei sollte nur für dich lesbar sein: `chmod 600 menu.mdf`.
 
 ## 4. Rezepte
 
@@ -202,12 +203,15 @@ Mach das Skript vorher ausführbar: `chmod +x ~/bin/backup.sh`.
 
 ### Menü beim Anmelden automatisch starten (Kiosk)
 
-1. Kiosk-Version bauen und installieren: `make kiosk && sudo make install`
-2. Am Ende von `~/.profile` eintragen:
+Kiosk heisst bei Automenu: Ctrl-C beendet das Programm nicht. Raus kommt man nur über einen `exit`-Eintrag, der auch mit Passwort gesperrt sein kann. Ein normales `automenu` genügt, der Modus wird beim Start eingeschaltet.
 
-       exec /pfad/zu/automenu /pfad/zu/menu.mdf
+1. Am Ende von `~/.profile` eintragen:
 
-3. Im Menü muss ein `exit`-Eintrag stehen, wenn man wieder rauskommen soll. Ohne `exit` und ohne Ctrl-C gibt es keinen Weg hinaus ausser Abmelden per Konsole von aussen.
+       exec automenu --kiosk /pfad/zu/menu.mdf
+
+2. Im Menü muss ein `exit`-Eintrag stehen, wenn man wieder rauskommen soll. Ohne `exit` und ohne Ctrl-C gibt es keinen Weg hinaus ausser Abmelden per Konsole von aussen.
+
+`make kiosk` baut eine Version, die immer im Kiosk-Modus läuft, auch ohne `--kiosk`.
 
 ## 5. Wenn etwas nicht geht
 

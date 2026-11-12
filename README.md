@@ -81,6 +81,7 @@ Für den ESP32 wird später nur `terminal.c` ersetzt. Kern und Loader bleiben.
 | 0.3.4 | Versionsnummer am Rand, Einträge wieder ungefähr mittig | fertig |
 | 0.3.5 | Rahmen aus Farbflächen als Standard, funktioniert mit jeder Schrift | fertig |
 | 0.9.0 | Menüdefinitionsdatei `.mdf`, Passwortschutz pro Eintrag, Maus, UTC-Uhr, Blackout | fertig, ungetestet auf FreeBSD |
+| 0.9.1 | Startparameter `--kiosk` statt eigener Kiosk-Version | fertig |
 | 1.0.0 | nach FreeBSD-Test und einigen Tagen Alltagsbetrieb | offen |
 | 1.1.0 | ESP32-Adapter (serielle Konsole) | offen |
 

@@ -26,7 +26,7 @@
 /* terminal.c - Terminal-Adapter für Mac, Linux, FreeBSD
  *
  * Liest Tasten, zeichnet das Menü (Rahmen, Farben, Uhr), führt Befehle aus.
- * Bauen mit -DKIOSK: Ctrl-C beendet das Programm nicht mehr.
+ * Kiosk: Start mit --kiosk (oder gebaut mit -DKIOSK): Ctrl-C beendet das Programm nicht.
  * Umgebungsvariablen: NO_COLOR (ohne Farben), AUTOMENU_COLORS=256|16|mono,
  * AUTOMENU_FRAME=solid|lines|ascii (Rahmenart, Standard solid). */
 #include <errno.h>
@@ -55,6 +55,12 @@
 #endif
 
 static mdf_t cfg;                          /* geladene Menüdefinition (.mdf) */
+static int kiosk =                         /* 1 = Ctrl-C beendet das Programm nicht */
+#ifdef KIOSK
+    1;                                     /* mit make kiosk gebaut: immer an */
+#else
+    0;
+#endif
 
 /* ---------- Terminalmodus ---------- */
 
@@ -232,9 +238,7 @@ static key_t_ read_key(int *digit)
     if (c == 127 || c == 8) return K_BACK;
     if (c >= '1' && c <= '9') { *digit = c - '1'; return K_DIGIT; }
     if (c == 'h' || c == 'H' || c == '?') return K_HELP;
-#ifndef KIOSK
-    if (c == 3) return K_QUIT;               /* Ctrl-C */
-#endif
+    if (c == 3 && !kiosk) return K_QUIT;     /* Ctrl-C */
     return K_NONE;
 }
 
@@ -611,10 +615,9 @@ static const char *HELP_TEXT =
     "  Maus                  Klick = ausführen, Rad = wählen\n"
     "  1 bis 9               Eintrag direkt ausführen\n"
     "  Esc oder Backspace    ein Menü zurück\n"
-#ifndef KIOSK
-    "  Ctrl-C                Programm beenden\n"
-#endif
     "  H                     diese Hilfe";
+
+static const char *HELP_CTRLC = "\n  Ctrl-C                Programm beenden";
 
 /* ---------- main ---------- */
 
@@ -623,6 +626,7 @@ static void usage(const char *prog)
     fprintf(stderr,
         "automenu %s\n"
         "Aufruf:  %s [datei.mdf]        Menü starten\n"
+        "         %s --kiosk [datei]    Menü starten, Ctrl-C beendet nicht\n"
         "         %s --check [datei]    Menüdatei nur prüfen\n"
         "         %s --hash [name]      Passwort-Zeile für die Menüdatei erzeugen\n"
         "         %s --version\n"
@@ -630,7 +634,7 @@ static void usage(const char *prog)
         "  $XDG_CONFIG_HOME/automenu/\n"
         "  ~/.config/automenu/\n"
         "  %s/automenu/\n",
-        AUTOMENU_VERSION, prog, prog, prog, prog, SYSCONFDIR);
+        AUTOMENU_VERSION, prog, prog, prog, prog, prog, SYSCONFDIR);
 }
 
 /* Standard-Menüdatei suchen (menu.mdf, sonst menu.txt). Rückgabe: 1 = gefunden. */
@@ -711,6 +715,7 @@ int main(int argc, char **argv)
         if (i + 2 < argc || strchr(nm, ' ') || nm[0] == '-') { usage(argv[0]); return 2; }
         return make_password_line(nm);
     }
+    if (i < argc && strcmp(argv[i], "--kiosk") == 0) { kiosk = 1; i++; }
     if (i < argc && strcmp(argv[i], "--check") == 0) { check_only = 1; i++; }
     if (i < argc) path = argv[i++];
     if (i < argc || (path && path[0] == '-')) { usage(argv[0]); return 2; }
@@ -809,7 +814,12 @@ int main(int argc, char **argv)
         case K_ENTER: core_input(core, CORE_EVENT_SELECT); break;
         case K_BACK:  core_input(core, CORE_EVENT_BACK); break;
         case K_DIGIT: core_select_index(core, (size_t)digit); break;
-        case K_HELP:  show_info(HELP_TEXT); break;
+        case K_HELP: {
+            char hb[600];
+            snprintf(hb, sizeof hb, "%s%s", HELP_TEXT, kiosk ? "" : HELP_CTRLC);
+            show_info(hb);
+            break;
+        }
         case K_CLICK:
             for (int j = 0; j < lay.shown; j++) {
                 if (my == lay.top + j * lay.spacing && mx >= lay.col && mx < lay.col + lay.w) {

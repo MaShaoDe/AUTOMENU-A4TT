@@ -31,6 +31,9 @@
 .Nm
 .Op Ar datei
 .Nm
+.Fl \-kiosk
+.Op Ar datei
+.Nm
 .Fl \-hash
 .Op Ar name
 .Nm
@@ -52,6 +55,13 @@ Ohne
 wird die erste vorhandene Datei aus der Liste unter
 .Sx FILES
 verwendet.
+.Pp
+Mit
+.Fl \-kiosk
+beendet Ctrl-C das Programm nicht.
+Der Ausgang bleibt ein
+.Cm exit
+Eintrag, der mit einem Passwort gesperrt sein kann.
 .Pp
 Mit
 .Fl \-check

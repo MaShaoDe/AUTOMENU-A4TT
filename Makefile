@@ -11,7 +11,7 @@
 #   sudo make install                    nach /usr/local
 #   make install PREFIX=$HOME/.local     ohne Admin-Rechte
 
-VERSION    = 0.9.0
+VERSION    = 0.9.1
 PREFIX    ?= /usr/local
 SYSCONFDIR?= $(PREFIX)/etc
 DESTDIR   ?=
