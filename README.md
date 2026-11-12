@@ -24,7 +24,7 @@ Also try `./automenu examples/things.mdf`.
 
 ## What it looks like
 
-macOS Terminal, font Menlo, `AUTOMENU_FRAME=lines`.
+macOS Terminal, font Menlo, `AUTOMENU_FRAME=lines`. The host name in the footer is replaced by `user@host`.
 
 ![Main menu](docs/screenshots/main-menu.png)
 
@@ -97,6 +97,8 @@ For the ESP32 only `terminal.c` will be replaced. Core and loader stay.
 ## Password lock and kiosk: what they can do
 
 Single menu items can be locked with `lock` (create the hash with `automenu --hash`), and `automenu --kiosk` disables Ctrl-C. This is a lock against the curious and against mistakes, not a security feature. Details in the cookbook, section 3.
+
+![Password window](docs/screenshots/password.png)
 
 ## Origin and licence
 
