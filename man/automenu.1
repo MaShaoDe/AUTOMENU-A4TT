@@ -88,6 +88,44 @@ Versionsnummer ausgeben.
 .El
 .Pp
 Vor der Datei steht höchstens eine Option.
+.Sh PASSWORDS
+Einzelne Einträge lassen sich mit einem Passwort sperren.
+Zuerst wird die Zeile erzeugt:
+.Pp
+.Dl automenu \-\-hash admin
+.Pp
+Die ausgegebene
+.Cm password
+Zeile gehört in die Menüdatei, beim Eintrag steht
+.Cm lock admin
+vor dem Typ.
+Der Name ist frei wählbar und hat nichts mit Benutzerkonten zu tun.
+Gespeichert wird nur ein Hash (PBKDF2-HMAC-SHA-256, 20000 Runden, zufälliges Salz).
+.Pp
+Bei jeder Auswahl eines gesperrten Eintrags wird das Passwort neu abgefragt.
+Nach einem falschen Passwort gibt es 1 Sekunde Wartezeit,
+nach 3 Fehlversuchen geht es mit 3 Sekunden Wartezeit zurück ins Menü.
+Ein ganzes Menü lässt sich nicht sperren, nur der Eintrag, der dorthin führt.
+Ein vergessenes Passwort wird ersetzt, indem die
+.Cm password
+Zeile in der Datei durch eine neue ersetzt wird.
+.Sh SECURITY
+Der Passwortschutz und die Option
+.Fl \-kiosk
+sind eine Sperre gegen Neugierige und Versehen, keine Sicherheitsfunktion.
+Wer die Menüdatei lesen kann, kann die Befehle direkt in der Shell ausführen.
+Ctrl-C beendet im normalen Modus das Programm ohne Passwort.
+.Fl \-kiosk
+sperrt nur Ctrl-C.
+Fenster schliessen, SSH oder eine zweite Shell bleiben möglich,
+und Programme mit Shell-Funktion wie
+.Xr vi 1
+oder
+.Xr top 1
+führen aus dem Menü hinaus.
+Die Menüdatei sollte nur dem Benutzer gehören und nur für ihn lesbar sein
+.Pq Ql chmod 600 .
+Wo echte Sicherheit gebraucht wird, sind die Benutzerrechte des Systems zuständig.
 .Sh FILES
 Reihenfolge der Suche:
 .Bl -tag -width Ds

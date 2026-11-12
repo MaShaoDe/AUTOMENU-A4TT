@@ -92,6 +92,10 @@ Für den ESP32 wird später nur `terminal.c` ersetzt. Kern und Loader bleiben.
 3. Doku gibt es nur in `README.md` und `COOKBOOK.md`.
 4. Alte Entwürfe stehen nur noch in der Git-Historie (Stand 0.1.0) und werden nicht weitergepflegt.
 
+## Passwortschutz und Kiosk: Was sie können
+
+Einzelne Menüeinträge lassen sich mit `lock` sperren (Hash erzeugen mit `automenu --hash`), und `automenu --kiosk` sperrt Ctrl-C. Das ist eine Sperre für Neugierige und Versehen, keine Sicherheitsfunktion. Einzelheiten im Cookbook, Abschnitt 3.
+
 ## Herkunft und Lizenz
 
 Die Idee stammt von Automenu von Marshall W. Magee (Magee Enterprises, ab 1983, nur für DOS, heute nicht mehr erhältlich). Dieses Projekt ist eine unabhängige Neuentwicklung ohne Code des Originals und steht in keiner Verbindung zu Magee Enterprises. Open Source unter der BSD-2-Clause-Lizenz, Copyright (c) 2026, FerienBSD aka Marcel Sauder.

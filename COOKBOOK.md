@@ -155,17 +155,53 @@ Nach der eingestellten Zeit ohne Taste oder Klick wird der Schirm schwarz. Die e
 
 ### Passwortschutz für einzelne Einträge
 
-1. Passwort-Zeile erzeugen (fragt 2 Mal ohne Echo): `automenu --hash admin`
-2. Die ausgegebene Zeile `password admin pbkdf2-sha256:...` in die Datei kopieren, ausserhalb der Menüs.
-3. Beim Eintrag `lock admin` vor den Typ schreiben:
+**Schritt für Schritt**
+
+1. Passwort-Zeile erzeugen (fragt 2 Mal ohne Echo):
+
+       automenu --hash admin
+
+   `admin` ist nur ein frei gewählter Name für dieses Passwort, kein Benutzerkonto. Ohne Name gilt `admin`. Das Programm ändert dabei nichts am System und schreibt keine Datei, es druckt nur eine Zeile:
+
+       password admin pbkdf2-sha256:20000:3f9a...:b71c...
+
+2. Diese Zeile in die `.mdf`-Datei kopieren, ausserhalb der Menüs (am besten oben).
+3. Beim gewünschten Eintrag `lock admin` vor den Typ schreiben:
 
        item "Neustart" "Fragt nach dem Passwort" lock admin run sudo reboot
+       item "Beenden"  "Nur mit Passwort"        lock admin exit
 
-Ablauf: Eintrag wählen, Fenster "Passwort" erscheint, Eingabe zeigt Sternchen. Bei falschem Passwort kommt eine Meldung. Nach 3 Fehlversuchen geht es zurück ins Menü, mit kurzer Wartezeit. Nach der Ausführung ist der Eintrag wieder gesperrt, es wird immer neu gefragt.
+4. Mit `automenu --check datei.mdf` prüfen, dann starten.
 
-Geschützt wird immer nur der einzelne Eintrag, nie ein ganzes Menü. Wer ein Untermenü schützen will, sperrt den Eintrag, der dorthin führt. Mehrere Passwörter mit verschiedenen Namen sind möglich.
+**Ablauf beim Benutzer**
 
-Ehrlich gesagt: Das ist eine Sperre gegen Neugierige und Versehen. Wer die Datei lesen kann, kann den Befehl auch direkt in der Shell ausführen. Sinnvoll ist der Schutz zusammen mit dem Kiosk-Modus (`automenu --kiosk`) oder auf dem ESP32. Die Datei sollte nur für dich lesbar sein: `chmod 600 menu.mdf`.
+Eintrag wählen (Enter, Ziffer oder Mausklick), Fenster "Passwort" erscheint, die Eingabe zeigt Sternchen. Enter bestätigt, Esc bricht ab. Bei falschem Passwort kommt eine Meldung und eine Wartezeit von 1 Sekunde. Nach 3 Fehlversuchen geht es zurück ins Menü, mit 3 Sekunden Wartezeit. Nach der Ausführung ist der Eintrag wieder gesperrt. Es wird bei jeder Auswahl neu gefragt, es gibt keine Freischaltung auf Zeit.
+
+**Regeln**
+
+- Geschützt wird immer nur der einzelne Eintrag, nie ein ganzes Menü. Wer ein Untermenü schützen will, sperrt den Eintrag, der dorthin führt.
+- Jeder Eintrag darf `lock` haben, auch `info`, `back` und `exit`.
+- Mehrere Passwörter mit verschiedenen Namen sind möglich (`password chef ...`, `password gast ...`, dann `lock chef` oder `lock gast`).
+- Ein Name darf nur einmal definiert sein. `lock` mit unbekanntem Namen ist ein Fehler, den `--check` meldet.
+
+**Passwort ändern oder vergessen**
+
+Es gibt kein Zurücksetzen. Mit `automenu --hash admin` eine neue Zeile erzeugen und die alte `password admin`-Zeile in der Datei ersetzen. Wer das Passwort vergessen hat, ersetzt die Zeile genauso, denn die Datei kann man ja bearbeiten.
+
+**Wie das Passwort gespeichert wird**
+
+Nie im Klartext. In der Datei steht nur ein Hash: PBKDF2 mit HMAC-SHA-256, 20000 Runden und einem zufälligen Salz (16 Bytes aus `/dev/urandom`). Gleiche Passwörter ergeben deshalb verschiedene Zeilen. Das Format ist `pbkdf2-sha256:Runden:Salz:Hash`. Die Zeile nicht von Hand ändern, sonst meldet `--check` einen ungültigen Hash.
+
+**Was der Schutz kann und was nicht (bitte lesen)**
+
+Das ist eine Sperre gegen Neugierige und Versehen, keine Sicherheitsfunktion. Sie schützt nicht gegen:
+
+- Ctrl-C im normalen Modus. Das beendet das Programm ohne Passwort. Mit `automenu --kiosk` ist Ctrl-C aus.
+- Fenster schliessen, Terminal-Sitzung, SSH, eine zweite Shell. Wer so ins System kommt, ist wieder in der Shell.
+- Das Lesen der Datei. Wer die `.mdf` lesen kann, sieht die Befehle und kann sie direkt in der Shell ausführen. Der Hash selbst lässt sich nicht zurückrechnen, aber ein schwaches Passwort kann man raten.
+- Programme, die du aus dem Menü startest. Hat `top` oder `vi` eine Shell-Funktion, ist man draussen.
+
+Der Kiosk-Modus sperrt nur Ctrl-C, mehr nicht. Sinnvoll ist die Kombination für einfache Dinge: Menü startet beim Anmelden (`exec automenu --kiosk datei.mdf` in `~/.profile`), gefährliche Einträge sind mit `lock` gesperrt, die Datei ist nur für dich lesbar (`chmod 600 datei.mdf`) und gehört dir, nicht dem Benutzer des Menüs. Wo echte Sicherheit gebraucht wird, brauchst du Benutzerrechte des Systems.
 
 ## 4. Rezepte
 
