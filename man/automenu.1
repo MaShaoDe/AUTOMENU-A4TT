@@ -74,6 +74,20 @@ Mit
 wird zweimal ein Passwort abgefragt (ohne Echo) und die passende
 .Cm password
 Zeile für die Menüdatei ausgegeben.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl \-kiosk
+Kiosk-Modus: Ctrl-C beendet das Programm nicht.
+.It Fl \-check
+Datei nur prüfen, Menü nicht starten.
+.It Fl \-hash Op Ar name
+Passwort-Zeile erzeugen, ohne Name
+.Dq admin .
+.It Fl \-version
+Versionsnummer ausgeben.
+.El
+.Pp
+Vor der Datei steht höchstens eine Option.
 .Sh FILES
 Reihenfolge der Suche:
 .Bl -tag -width Ds
@@ -133,6 +147,20 @@ Maus ein oder aus, Vorgabe on.
 .It Ev XDG_CONFIG_HOME
 Ort der Benutzerkonfiguration, Vorgabe
 .Pa ~/.config .
+.It Ev NO_COLOR
+Gesetzt: keine Farben, nur invertierte Darstellung.
+.It Ev AUTOMENU_COLORS
+.Ql 256 ,
+.Ql 16
+oder
+.Ql mono
+erzwingt die Farbtiefe.
+.It Ev AUTOMENU_FRAME
+.Ql solid
+(Vorgabe, Farbflächen),
+.Ql lines
+(Doppellinien, braucht eine Schrift mit Linienzeichen) oder
+.Ql ascii .
 .El
 .Sh EXIT STATUS
 .Ex -std

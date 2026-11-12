@@ -7,14 +7,28 @@ Rezepte für eigene Menüs. Du brauchst nur einen Texteditor.
 Läuft auf macOS, Linux und FreeBSD. Gebraucht wird nur ein C-Compiler (`cc`): auf dem Mac `xcode-select --install`, unter FreeBSD ist er dabei, unter Linux z.B. `sudo apt install build-essential`.
 
     make                             # normale Version
-    make kiosk                       # Version, die immer im Kiosk-Modus läuft
     make test                        # Tests
     ./automenu mein_menu.mdf         # Menü starten
     ./automenu --check mein_menu.mdf # Datei nur prüfen, ohne Menü zu starten
     ./automenu --kiosk mein_menu.mdf # Kiosk-Modus: Ctrl-C beendet nicht
     ./automenu                       # ohne Datei: Standardpfade (siehe unten)
 
-Tasten: Pfeil hoch/runter und Enter, Ziffern 1 bis 9 springen direkt zum Eintrag und führen ihn aus, Esc oder Backspace gehen ein Menü zurück, H zeigt die Hilfe, Ctrl-C beendet (nicht im Kiosk-Modus).
+### Startparameter
+
+Aufruf: `automenu [Option] [datei]`. Ohne Datei sucht `automenu` an den Standardpfaden (Abschnitt 2).
+
+| Aufruf | Wirkung |
+|---|---|
+| `automenu` | Menü aus der Standarddatei starten |
+| `automenu datei.mdf` | Menü aus dieser Datei starten |
+| `automenu --kiosk [datei]` | Kiosk-Modus: Ctrl-C beendet das Programm nicht. Raus nur über einen `exit`-Eintrag (der mit Passwort gesperrt sein kann) |
+| `automenu --check [datei]` | Datei nur prüfen, Menü wird nicht gestartet. Meldet Fehler mit Zeilennummer, sonst "ok" mit Anzahl Menüs und Passwörter |
+| `automenu --hash [name]` | Zweimal Passwort eingeben (ohne Echo), gibt die fertige `password`-Zeile aus. Ohne Name gilt `admin` |
+| `automenu --version` | Versionsnummer anzeigen |
+
+Es steht immer nur eine Option vor der Datei, `--kiosk` und `--check` lassen sich nicht kombinieren. Bei falschem Aufruf zeigt `automenu` eine kurze Übersicht. Rückgabewert: 0 = ok, 1 = Fehler in der Datei oder beim Start, 2 = falscher Aufruf.
+
+Tasten: Pfeil hoch/runter und Enter, Ziffern 1 bis 9 springen direkt zum Eintrag und führen ihn aus, Esc oder Backspace gehen ein Menü zurück, H zeigt die Hilfe, Ctrl-C beendet (nicht im Kiosk-Modus), Mausklick führt aus, Mausrad wählt.
 
 Der Bildschirm hat einen Rahmen, einen roten Titelbalken, die Einträge in Grün, eine graue Leiste mit dem Hilfetext des gewählten Eintrags und unten Datum, Uhrzeit und `benutzer@rechner`. Unter dem Rahmen steht rechts die Programmversion. Oben rechts steht "MENÜ 1 VON 2" (Position des Menüs in der Datei). Der Rahmen füllt das ganze Terminalfenster und passt sich sofort an, wenn du das Fenster vergrösserst oder die Schrift mit Cmd und + grösser stellst. Mindestgrösse: 60 x 16. Die Darstellung lässt sich mit Umgebungsvariablen umstellen:
 
@@ -210,8 +224,6 @@ Kiosk heisst bei Automenu: Ctrl-C beendet das Programm nicht. Raus kommt man nur
        exec automenu --kiosk /pfad/zu/menu.mdf
 
 2. Im Menü muss ein `exit`-Eintrag stehen, wenn man wieder rauskommen soll. Ohne `exit` und ohne Ctrl-C gibt es keinen Weg hinaus ausser Abmelden per Konsole von aussen.
-
-`make kiosk` baut eine Version, die immer im Kiosk-Modus läuft, auch ohne `--kiosk`.
 
 ## 5. Wenn etwas nicht geht
 
