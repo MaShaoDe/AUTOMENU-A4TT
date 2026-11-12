@@ -1,101 +1,103 @@
 # Automenu
 
-Ein Textmenü wie damals unter CP/M und MS-DOS. Du schreibst eine Textdatei,
-das Programm zeigt daraus ein Menü, und ein Tastendruck startet einen Befehl.
+A text menu like in the old days of CP/M and MS-DOS. You write a plain text file,
+the program turns it into a menu, and a key press starts a command.
 
-Ziele in dieser Reihenfolge: MacBook (Terminal), Linux-Distributionen, FreeBSD, danach ESP32 und weitere Things.
+Targets, in this order: MacBook (Terminal), Linux distributions, FreeBSD, then ESP32 and other Things.
 
-| Plattform | Stand |
+| Platform | Status |
 |---|---|
-| Linux | gebaut und getestet |
-| macOS | gebaut und getestet auf macOS Golden Gate 27.2 (Terminal, Apple Silicon), siehe COOKBOOK.md |
-| FreeBSD | nur Standard-C und POSIX, noch nicht dort getestet |
-| ESP32 | geplant (0.4) |
+| Linux | built and tested |
+| macOS | built and tested on macOS Golden Gate 27.2 (Terminal, Apple Silicon), see COOKBOOK.md |
+| FreeBSD | plain C and POSIX only, not tested there yet |
+| ESP32 | planned (1.1.0) |
 
-## Starten
+## Getting started
 
     make
     ./automenu examples/menu.mdf
 
-Bedienung: Pfeiltasten und Enter, Ziffern 1 bis 9 direkt, Esc geht zurück, H zeigt die Hilfe.
+Use: arrow keys and Enter, digits 1 to 9 for direct access, Esc goes back, H shows the help.
+The mouse works too: click runs an item, the wheel selects.
 
-Probiere auch `./automenu examples/things.mdf`.
+Also try `./automenu examples/things.mdf`.
 
-## So sieht es aus
+## What it looks like
 
-Terminal von macOS, Schrift Menlo, `AUTOMENU_FRAME=lines`.
+macOS Terminal, font Menlo, `AUTOMENU_FRAME=lines`.
 
-![Hauptmenü](docs/screenshots/hauptmenue.png)
+![Main menu](docs/screenshots/main-menu.png)
 
-![Untermenü](docs/screenshots/untermenue.png)
+![Submenu](docs/screenshots/submenu.png)
 
-![Hilfe mit der Taste H](docs/screenshots/hilfe.png)
+![Help with the H key](docs/screenshots/help.png)
 
-## Installieren
+## Installing
 
-| System | Befehl |
+| System | Command |
 |---|---|
-| Linux, macOS | `sudo make install` (nach `/usr/local`) |
-| ohne Admin-Rechte | `make install PREFIX=$HOME/.local` |
-| FreeBSD | Port oder Package, siehe `packaging/freebsd/README.txt` |
-| macOS Schritt für Schritt | COOKBOOK.md, Abschnitt 2 |
+| Linux, macOS | `sudo make install` (to `/usr/local`) |
+| without admin rights | `make install PREFIX=$HOME/.local` |
+| FreeBSD | port or package, see `packaging/freebsd/README.txt` |
+| macOS step by step | COOKBOOK.md, section 2 |
 
-Danach: Menü nach `~/.config/automenu/menu.mdf` legen, dann startet `automenu` ohne Argument.
-Alle Pfade stehen im Cookbook unter "Wo liegt was".
+Then put your menu at `~/.config/automenu/menu.mdf`, and `automenu` starts without arguments.
+All paths are listed in the cookbook under "Where things live".
 
-## Menü selbst bauen
+## Building your own menu
 
-Siehe **COOKBOOK.md**. Ein Eintrag besteht aus einer Zeile:
+See **COOKBOOK.md**. One menu entry is one line:
 
-    menu start "Mein Menü"
-      item "Datum anzeigen"   run date
-      item "Beenden"          exit
+    menu start "My menu"
+      item "Show the date"   run date
+      item "Quit"            exit
 
-## Aufbau
+## Structure
 
-| Datei | Aufgabe |
+| File | Purpose |
 |---|---|
-| `src/menu.h` | Datenmodell |
-| `src/core.c` | Menülogik, kein IO, später auch auf dem ESP32 nutzbar |
-| `src/loader.c` | liest und prüft die Menüdatei (`.mdf`) |
-| `src/auth.c` | Passwort-Hash (PBKDF2-SHA256), ohne Abhängigkeiten |
-| `src/terminal.c` | Tasten, Bildschirm, Befehle ausführen (nur Mac/Linux) |
-| `tests/test_all.c` | Tests (`make test`) |
-| `Makefile` | bauen, testen, installieren |
-| `man/automenu.1` | Man-Page |
-| `packaging/freebsd/` | Port-Gerüst |
-| `examples/` | Beispielmenüs |
+| `src/menu.h` | data model |
+| `src/core.c` | menu logic, no IO, reusable on the ESP32 later |
+| `src/loader.c` | reads and checks the menu file (`.mdf`) |
+| `src/auth.c` | password hash (PBKDF2-SHA256), no dependencies |
+| `src/terminal.c` | keys, mouse, screen, running commands (macOS, Linux, FreeBSD) |
+| `tests/test_all.c` | tests (`make test`) |
+| `Makefile` | build, test, install |
+| `man/automenu.1` | man page |
+| `packaging/freebsd/` | port skeleton |
+| `examples/` | example menus |
 
-Für den ESP32 wird später nur `terminal.c` ersetzt. Kern und Loader bleiben.
+For the ESP32 only `terminal.c` will be replaced. Core and loader stay.
 
-## Fahrplan
+## Roadmap
 
-| Version | Inhalt | Stand |
+| Version | Content | Status |
 |---|---|---|
-| 0.2 | Menüs, Untermenüs, Befehle ausführen, Info-Texte, Prüfmodus | fertig |
-| 0.2.1 | Installation: Makefile, feste Pfade, Man-Page, Port-Gerüst | fertig, Port ungetestet |
-| 0.3.0 | Darstellung im Stil der Auto-Menu-Programme: Rahmen, Farben, Beschreibungsleiste, Uhr, Hilfe | fertig |
-| 0.3.1 | Rahmen füllt das Fenster und passt sich sofort an, feste 256-Farben-Palette | fertig |
-| 0.3.2 | Farberkennung auch bei TERM=vt100, Umschalter für Farben und Rahmen | fertig |
-| 0.3.3 | Einträge kompakt, mit einer Leerzeile dazwischen | fertig |
-| 0.3.4 | Versionsnummer am Rand, Einträge wieder ungefähr mittig | fertig |
-| 0.3.5 | Rahmen aus Farbflächen als Standard, funktioniert mit jeder Schrift | fertig |
-| 0.9.0 | Menüdefinitionsdatei `.mdf`, Passwortschutz pro Eintrag, Maus, UTC-Uhr, Blackout | fertig, ungetestet auf FreeBSD |
-| 0.9.1 | Startparameter `--kiosk` statt eigener Kiosk-Version | fertig |
-| 1.0.0 | nach FreeBSD-Test und einigen Tagen Alltagsbetrieb | offen |
-| 1.1.0 | ESP32-Adapter (serielle Konsole) | offen |
+| 0.2 | menus, submenus, running commands, info texts, check mode | done |
+| 0.2.1 | installation: Makefile, fixed paths, man page, port skeleton | done, port untested |
+| 0.3.0 | look of the Auto-Menu programs: frame, colours, description bar, clock, help | done |
+| 0.3.1 | frame fills the window and adapts at once, fixed 256 colour palette | done |
+| 0.3.2 | colour detection also with TERM=vt100, switches for colours and frame | done |
+| 0.3.3 | compact items with one blank row between them | done |
+| 0.3.4 | version number at the edge, items roughly centred again | done |
+| 0.3.5 | frame made of coloured areas by default, works with any font | done |
+| 0.9.0 | menu definition file `.mdf`, password lock per item, mouse, UTC clock, blackout | done, untested on FreeBSD |
+| 0.9.1 | start option `--kiosk` instead of a separate kiosk build | done |
+| 0.9.2 | English as the only language (screen texts, messages, documentation) | done |
+| 1.0.0 | after the FreeBSD test and a few days of daily use | open |
+| 1.1.0 | ESP32 adapter (serial console) | open |
 
-## Regeln, damit das Projekt klein bleibt
+## Rules to keep the project small
 
-1. Pro Version genau 1 neue Sache.
-2. Erst Code mit Test, dann höchstens 3 Zeilen Doku.
-3. Doku gibt es nur in `README.md` und `COOKBOOK.md`.
-4. Alte Entwürfe stehen nur noch in der Git-Historie (Stand 0.1.0) und werden nicht weitergepflegt.
+1. Exactly one new thing per version.
+2. Code with a test first, then at most 3 lines of documentation.
+3. Documentation lives only in `README.md` and `COOKBOOK.md`.
+4. Old drafts live only in the git history (state 0.1.0) and are no longer maintained.
 
-## Passwortschutz und Kiosk: Was sie können
+## Password lock and kiosk: what they can do
 
-Einzelne Menüeinträge lassen sich mit `lock` sperren (Hash erzeugen mit `automenu --hash`), und `automenu --kiosk` sperrt Ctrl-C. Das ist eine Sperre für Neugierige und Versehen, keine Sicherheitsfunktion. Einzelheiten im Cookbook, Abschnitt 3.
+Single menu items can be locked with `lock` (create the hash with `automenu --hash`), and `automenu --kiosk` disables Ctrl-C. This is a lock against the curious and against mistakes, not a security feature. Details in the cookbook, section 3.
 
-## Herkunft und Lizenz
+## Origin and licence
 
-Die Idee stammt von Automenu von Marshall W. Magee (Magee Enterprises, ab 1983, nur für DOS, heute nicht mehr erhältlich). Dieses Projekt ist eine unabhängige Neuentwicklung ohne Code des Originals und steht in keiner Verbindung zu Magee Enterprises. Open Source unter der BSD-2-Clause-Lizenz, Copyright (c) 2026, FerienBSD aka Marcel Sauder.
+The idea comes from Automenu by Marshall W. Magee (Magee Enterprises, from 1983, DOS only, no longer available). This project is an independent new implementation without any code of the original and has no connection to Magee Enterprises. Open source under the BSD 2-Clause licence, Copyright (c) 2026, FerienBSD aka Marcel Sauder.

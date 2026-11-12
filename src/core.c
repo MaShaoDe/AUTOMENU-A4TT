@@ -23,7 +23,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* core.c - Menükern (siehe core.h) */
+/* core.c - menu core (see core.h) */
 #include <stdlib.h>
 #include <string.h>
 #include "core.h"
@@ -117,7 +117,7 @@ void core_input(core_t *c, core_event_t ev)
     case CORE_EVENT_SELECT: {
         const menu_item_t *it = &m->items[c->current_index];
         if (it->lock && *it->lock)
-            c->pending_lock = it;      /* erst Passwort abfragen */
+            c->pending_lock = it;      /* ask for the password first */
         else
             activate(c, it);
         break;
@@ -166,7 +166,7 @@ const char *core_poll_info(core_t *c)
 
 int core_should_exit(const core_t *c) { return c ? c->exit_requested : 0; }
 
-/* Sperre: liefert den Passwortnamen, solange eine Abfrage aussteht */
+/* Lock: returns the password name while a prompt is pending */
 const char *core_locked_name(const core_t *c)
 {
     return (c && c->pending_lock) ? c->pending_lock->lock : NULL;

@@ -23,7 +23,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* loader.c - Menüdatei einlesen und streng prüfen */
+/* loader.c - read and strictly check the menu file */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,7 +52,7 @@ static char *skip_ws(char *p)
     return p;
 }
 
-/* nächstes Wort; schreibt ein '\0' hinter das Wort */
+/* next word; writes a '\0' after the word */
 static char *take_word(char **pp)
 {
     char *p = skip_ws(*pp);
@@ -64,7 +64,7 @@ static char *take_word(char **pp)
     return s;
 }
 
-/* "Text in Anführungszeichen" */
+/* "text in quotation marks" */
 static char *take_quoted(char **pp)
 {
     char *p = skip_ws(*pp);
@@ -77,7 +77,7 @@ static char *take_quoted(char **pp)
     return s;
 }
 
-/* Zeichenfolge \n wird zu einem Zeilenumbruch (nur für info) */
+/* the character sequence \n becomes a line break (info only) */
 static void unescape_newlines(char *s)
 {
     char *w = s;
@@ -133,74 +133,74 @@ static int parse_menu_line(cfg_t *cfg, char *p, const char *name, size_t ln)
     char *id = take_word(&p);
     char *title = take_quoted(&p);
     if (!id || !title || *skip_ws(p))
-        return fail(name, ln, "Syntax: menu <id> \"Titel\"", NULL);
+        return fail(name, ln, "syntax: menu <id> \"Title\"", NULL);
 
     menu_t *nm = realloc(cfg->menus, sizeof(menu_t) * (cfg->count + 1));
-    if (!nm) return fail(name, ln, "zu wenig Speicher", NULL);
+    if (!nm) return fail(name, ln, "out of memory", NULL);
     cfg->menus = nm;
     menu_t *m = &cfg->menus[cfg->count];
     memset(m, 0, sizeof(*m));
     m->id = dupstr(id);
     m->title = dupstr(title);
     cfg->count++;
-    if (!m->id || !m->title) return fail(name, ln, "zu wenig Speicher", NULL);
+    if (!m->id || !m->title) return fail(name, ln, "out of memory", NULL);
     return 1;
 }
 
 static int parse_item_line(cfg_t *cfg, char *p, const char *name, size_t ln)
 {
     if (cfg->count == 0)
-        return fail(name, ln, "item steht vor dem ersten menu", NULL);
+        return fail(name, ln, "item before the first menu", NULL);
 
     char *label = take_quoted(&p);
     char *desc = NULL;
-    if (label && *skip_ws(p) == '"') {      /* optionaler Hilfetext */
+    if (label && *skip_ws(p) == '"') {      /* optional help text */
         desc = take_quoted(&p);
-        if (!desc) return fail(name, ln, "Hilfetext ohne schliessendes Anführungszeichen", NULL);
+        if (!desc) return fail(name, ln, "help text without closing quotation mark", NULL);
     }
     char *lock = NULL;
-    if (label) {                            /* optional: lock <passwortname> */
+    if (label) {                            /* optional: lock <password name> */
         char *q = skip_ws(p);
         if (strncmp(q, "lock", 4) == 0 && (q[4] == ' ' || q[4] == '\t')) {
             p = q + 4;
             lock = take_word(&p);
-            if (!lock) return fail(name, ln, "lock braucht einen Passwortnamen", NULL);
+            if (!lock) return fail(name, ln, "lock needs a password name", NULL);
         }
     }
     char *type = take_word(&p);
     if (!label || !type)
-        return fail(name, ln, "Syntax: item \"Text\" [\"Hilfetext\"] [lock <name>] <run|menu|info|back|exit> ...", NULL);
+        return fail(name, ln, "syntax: item \"Text\" [\"Help text\"] [lock <name>] <run|menu|info|back|exit> ...", NULL);
 
     char *rest = skip_ws(p);
     menu_item_t it = {0};
     char *arg = NULL;
 
     if (strcmp(type, "run") == 0) {
-        if (!*rest) return fail(name, ln, "run braucht einen Befehl", NULL);
+        if (!*rest) return fail(name, ln, "run needs a command", NULL);
         it.type = MENU_ITEM_RUN; arg = rest;
     } else if (strcmp(type, "menu") == 0) {
         if (!*rest || strchr(rest, ' ') || strchr(rest, '\t'))
-            return fail(name, ln, "menu braucht genau eine Menü-ID", NULL);
+            return fail(name, ln, "menu needs exactly one menu id", NULL);
         it.type = MENU_ITEM_MENU; arg = rest;
     } else if (strcmp(type, "info") == 0) {
         it.type = MENU_ITEM_INFO;
         if (*rest) { unescape_newlines(rest); arg = rest; }
     } else if (strcmp(type, "back") == 0 || strcmp(type, "exit") == 0) {
-        if (*rest) return fail(name, ln, type, "braucht keine Angaben");
+        if (*rest) return fail(name, ln, type, "takes no arguments");
         it.type = (type[0] == 'b') ? MENU_ITEM_BACK : MENU_ITEM_EXIT;
     } else {
-        return fail(name, ln, "unbekannter Typ:", type);
+        return fail(name, ln, "unknown type:", type);
     }
 
     menu_t *m = &cfg->menus[cfg->count - 1];
     menu_item_t *ni = realloc(m->items, sizeof(menu_item_t) * (m->item_count + 1));
-    if (!ni) return fail(name, ln, "zu wenig Speicher", NULL);
+    if (!ni) return fail(name, ln, "out of memory", NULL);
     m->items = ni;
     it.label = dupstr(label);
     it.arg = arg ? dupstr(arg) : NULL;
     it.desc = desc ? dupstr(desc) : NULL;
     it.lock = lock ? dupstr(lock) : NULL;
-    if (!it.label || (arg && !it.arg) || (desc && !it.desc) || (lock && !it.lock)) return fail(name, ln, "zu wenig Speicher", NULL);
+    if (!it.label || (arg && !it.arg) || (desc && !it.desc) || (lock && !it.lock)) return fail(name, ln, "out of memory", NULL);
     m->items[m->item_count++] = it;
     return 1;
 }
@@ -210,14 +210,14 @@ static int parse_password_line(cfg_t *cfg, char *p, const char *name, size_t ln)
     char *pn = take_word(&p);
     char *hash = take_word(&p);
     if (!pn || !hash || *skip_ws(p))
-        return fail(name, ln, "Syntax: password <name> <hash>  (Hash erzeugen: automenu --hash)", NULL);
+        return fail(name, ln, "syntax: password <name> <hash>  (create the hash with: automenu --hash)", NULL);
     if (!auth_format_ok(hash))
-        return fail(name, ln, "Passwort-Hash ungültig, bitte mit automenu --hash erzeugen", NULL);
+        return fail(name, ln, "invalid password hash, please create it with automenu --hash", NULL);
     for (size_t i = 0; i < cfg->pw_count; i++)
         if (strcmp(cfg->pw[i].name, pn) == 0)
-            return fail(name, ln, "Passwortname doppelt:", pn);
+            return fail(name, ln, "duplicate password name:", pn);
     password_t *np = realloc(cfg->pw, sizeof(password_t) * (cfg->pw_count + 1));
-    if (!np) return fail(name, ln, "zu wenig Speicher", NULL);
+    if (!np) return fail(name, ln, "out of memory", NULL);
     cfg->pw = np;
     cfg->pw[cfg->pw_count].name = dupstr(pn);
     cfg->pw[cfg->pw_count].hash = dupstr(hash);
@@ -230,22 +230,22 @@ static int parse_set_line(cfg_t *cfg, char *p, const char *name, size_t ln)
     char *key = take_word(&p);
     char *val = take_word(&p);
     if (!key || !val || *skip_ws(p))
-        return fail(name, ln, "Syntax: set <blackout|clock|mouse> <wert>", NULL);
+        return fail(name, ln, "syntax: set <blackout|clock|mouse> <value>", NULL);
     if (strcmp(key, "blackout") == 0) {
         char *e; long v = strtol(val, &e, 10);
         if (*e || v < 0 || v > 86400)
-            return fail(name, ln, "blackout: Sekunden 0 bis 86400 (0 = aus)", NULL);
+            return fail(name, ln, "blackout: seconds 0 to 86400 (0 = off)", NULL);
         cfg->blackout_s = (int)v;
     } else if (strcmp(key, "clock") == 0) {
         if (strcmp(val, "utc") == 0) cfg->clock_utc = 1;
         else if (strcmp(val, "local") == 0) cfg->clock_utc = 0;
-        else return fail(name, ln, "clock: utc oder local", NULL);
+        else return fail(name, ln, "clock: utc or local", NULL);
     } else if (strcmp(key, "mouse") == 0) {
         if (strcmp(val, "on") == 0) cfg->mouse = 1;
         else if (strcmp(val, "off") == 0) cfg->mouse = 0;
-        else return fail(name, ln, "mouse: on oder off", NULL);
+        else return fail(name, ln, "mouse: on or off", NULL);
     } else {
-        return fail(name, ln, "unbekannte Einstellung:", key);
+        return fail(name, ln, "unknown setting:", key);
     }
     return 1;
 }
@@ -253,15 +253,15 @@ static int parse_set_line(cfg_t *cfg, char *p, const char *name, size_t ln)
 static int validate(const cfg_t *cfg, const char *name)
 {
     if (cfg->count == 0)
-        return fail(name, 0, "keine Menüs definiert", NULL);
+        return fail(name, 0, "no menus defined", NULL);
 
     for (size_t i = 0; i < cfg->count; i++) {
         const menu_t *a = &cfg->menus[i];
         if (a->item_count == 0)
-            return fail(name, 0, "Menü ohne Einträge:", a->id);
+            return fail(name, 0, "menu without items:", a->id);
         for (size_t j = i + 1; j < cfg->count; j++)
             if (strcmp(a->id, cfg->menus[j].id) == 0)
-                return fail(name, 0, "Menü-ID doppelt:", a->id);
+                return fail(name, 0, "duplicate menu id:", a->id);
     }
     for (size_t i = 0; i < cfg->count; i++) {
         const menu_t *a = &cfg->menus[i];
@@ -272,7 +272,7 @@ static int validate(const cfg_t *cfg, const char *name)
                 for (size_t j = 0; j < cfg->pw_count; j++)
                     if (strcmp(lk, cfg->pw[j].name) == 0) ok = 1;
                 if (!ok) {
-                    fprintf(stderr, "%s: Eintrag \"%s\" nutzt unbekanntes Passwort '%s'\n",
+                    fprintf(stderr, "%s: item \"%s\" uses unknown password '%s'\n",
                             name, a->items[k].label, lk);
                     return 0;
                 }
@@ -282,7 +282,7 @@ static int validate(const cfg_t *cfg, const char *name)
             for (size_t j = 0; j < cfg->count; j++)
                 if (strcmp(a->items[k].arg, cfg->menus[j].id) == 0) found = 1;
             if (!found) {
-                fprintf(stderr, "%s: Menü '%s' verweist auf unbekanntes Menü '%s'\n",
+                fprintf(stderr, "%s: menu '%s' refers to unknown menu '%s'\n",
                         name, a->id, a->items[k].arg);
                 return 0;
             }
@@ -296,7 +296,7 @@ int mdf_parse_text(const char *text, const char *name, mdf_t *out)
     cfg_t cfg = {0};
     cfg.mouse = 1;
     char *buf = dupstr(text);
-    if (!buf) return fail(name, 0, "zu wenig Speicher", NULL);
+    if (!buf) return fail(name, 0, "out of memory", NULL);
 
     int ok = 1;
     size_t ln = 0;
@@ -306,7 +306,7 @@ int mdf_parse_text(const char *text, const char *name, mdf_t *out)
         if (nl) *nl = '\0';
         ln++;
 
-        size_t n = strlen(line);   /* Zeilenende CR/LF und Leerzeichen entfernen */
+        size_t n = strlen(line);   /* strip CR/LF and trailing blanks */
         while (n > 0 && (line[n-1] == '\r' || line[n-1] == ' ' || line[n-1] == '\t'))
             line[--n] = '\0';
 
@@ -317,7 +317,7 @@ int mdf_parse_text(const char *text, const char *name, mdf_t *out)
             else if (strcmp(kw, "item") == 0) ok = parse_item_line(&cfg, p, name, ln);
             else if (strcmp(kw, "password") == 0) ok = parse_password_line(&cfg, p, name, ln);
             else if (strcmp(kw, "set") == 0)  ok = parse_set_line(&cfg, p, name, ln);
-            else ok = fail(name, ln, "unbekanntes Schlüsselwort:", kw);
+            else ok = fail(name, ln, "unknown keyword:", kw);
         }
         line = nl ? nl + 1 : NULL;
     }

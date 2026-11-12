@@ -23,12 +23,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* terminal.c - Terminal-Adapter für Mac, Linux, FreeBSD
+/* terminal.c - terminal adapter for macOS, Linux, FreeBSD
  *
- * Liest Tasten, zeichnet das Menü (Rahmen, Farben, Uhr), führt Befehle aus.
- * Kiosk: Start mit --kiosk (oder gebaut mit -DKIOSK): Ctrl-C beendet das Programm nicht.
- * Umgebungsvariablen: NO_COLOR (ohne Farben), AUTOMENU_COLORS=256|16|mono,
- * AUTOMENU_FRAME=solid|lines|ascii (Rahmenart, Standard solid). */
+ * Reads keys and mouse, draws the menu (frame, colours, clock), runs commands.
+ * Kiosk: start with --kiosk: Ctrl-C does not quit.
+ * Environment: NO_COLOR (no colours), AUTOMENU_COLORS=256|16|mono,
+ * AUTOMENU_FRAME=solid|lines|ascii (frame style, default solid). */
 #include <errno.h>
 #include <locale.h>
 #include <poll.h>
@@ -49,20 +49,15 @@
 #include "loader.h"
 #include "version.h"
 
-/* Wird vom Makefile gesetzt (PREFIX/etc). */
+/* Set by the Makefile (PREFIX/etc). */
 #ifndef SYSCONFDIR
 #define SYSCONFDIR "/usr/local/etc"
 #endif
 
-static mdf_t cfg;                          /* geladene Menüdefinition (.mdf) */
-static int kiosk =                         /* 1 = Ctrl-C beendet das Programm nicht */
-#ifdef KIOSK
-    1;                                     /* mit make kiosk gebaut: immer an */
-#else
-    0;
-#endif
+static mdf_t cfg;                          /* loaded menu definition (.mdf) */
+static int kiosk = 0;                       /* 1 = Ctrl-C does not quit (--kiosk) */
 
-/* ---------- Terminalmodus ---------- */
+/* ---------- Terminal mode ---------- */
 
 static struct termios orig_tio;
 static int raw_active = 0;
@@ -73,9 +68,9 @@ static void restore_terminal(void)
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_tio);
         raw_active = 0;
     }
-    /* Maus aus, Farben zurücksetzen, Cursor wieder zeigen */
+    /* mouse off, reset colours, show cursor again */
     static const char reset[] = "\033[?1000l\033[?1006l\033[0m\033[?25h";
-    if (write(STDOUT_FILENO, reset, sizeof reset - 1) < 0) { /* egal */ }
+    if (write(STDOUT_FILENO, reset, sizeof reset - 1) < 0) { /* ignore */ }
 }
 
 static void raw_on(void)
@@ -89,14 +84,14 @@ static void raw_on(void)
     raw_active = 1;
 }
 
-/* Maus: xterm-Modus 1000 (Klicks, Rad) mit Koordinaten im SGR-Format (1006) */
+/* Mouse: xterm mode 1000 (clicks, wheel) with SGR coordinates (1006) */
 static void mouse_set(int on)
 {
     const char *s = (on && cfg.mouse) ? "\033[?1000h\033[?1006h" : "\033[?1000l\033[?1006l";
-    if (write(STDOUT_FILENO, s, strlen(s)) < 0) { /* egal */ }
+    if (write(STDOUT_FILENO, s, strlen(s)) < 0) { /* ignore */ }
 }
 
-static void on_winch(int sig) { (void)sig; }   /* weckt nur poll() auf */
+static void on_winch(int sig) { (void)sig; }   /* only wakes up poll() */
 
 static void on_signal(int sig)
 {
@@ -105,7 +100,7 @@ static void on_signal(int sig)
     _exit(1);
 }
 
-/* ---------- Farben ---------- */
+/* ---------- Colours ---------- */
 
 typedef struct {
     const char *reset, *frame, *title, *num, *item, *sel,
@@ -114,36 +109,36 @@ typedef struct {
 
 static theme_t th;
 
-/* Rahmenarten (AUTOMENU_FRAME): solid = Farbflächen, geht mit jeder Schrift (Standard),
- * lines = Doppellinien, ascii = + - | */
+/* Frame styles (AUTOMENU_FRAME): solid = coloured areas, works with any font (default),
+ * lines = double lines, ascii = + - | */
 typedef struct { const char *tl, *tr, *bl, *br, *v, *h, *sl, *sr, *sh; } frame_t;
 static const frame_t FRAME_LINES = { "╔", "╗", "╚", "╝", "║", "═", "╟", "╢", "─" };
 static const frame_t FRAME_ASCII = { "+", "+", "+", "+", "|", "=", "+", "+", "-" };
 static const frame_t FRAME_SOLID = { " ", " ", " ", " ", " ", " ", " ", " ", " " };
 static const frame_t *fr = &FRAME_SOLID;
 static int frame_solid = 1;
-static int color_mode = 2;                 /* 0 = ohne Farben, 1 = 16, 2 = 256 */
+static int color_mode = 2;                 /* 0 = no colours, 1 = 16, 2 = 256 */
 
 static void theme_init(void)
 {
     const char *term = getenv("TERM");
     const char *nocolor = getenv("NO_COLOR");
 
-    const char *force = getenv("AUTOMENU_COLORS");   /* 256, 16 oder mono */
+    const char *force = getenv("AUTOMENU_COLORS");   /* 256, 16 or mono */
     int mono = (nocolor && *nocolor) || (term && strcmp(term, "dumb") == 0) ||
                (force && strcmp(force, "mono") == 0);
     if (mono) {
         color_mode = 0;
-        /* ohne Farben: nur invertiert */
+        /* no colours: inverse video only */
         th = (theme_t){ "\033[0m", "\033[0m", "\033[7m", "\033[0m", "\033[0m",
                         "\033[7m", "\033[0m", "\033[7m", "\033[0m", "\033[0m",
                         "\033[0m" };
         return;
     }
 
-    /* Fast alle Terminals können 256 Farben. Nur sehr alte nicht. */
-    /* Moderne Terminalprogramme (macOS Terminal, iTerm2 ...) melden sich über
-     * TERM_PROGRAM oder COLORTERM, auch wenn TERM noch "vt100" sagt. */
+    /* Almost all terminals can do 256 colours. Only very old ones cannot. */
+    /* Modern terminal programs (macOS Terminal, iTerm2 ...) announce themselves
+     * via TERM_PROGRAM or COLORTERM, even when TERM still says "vt100". */
     const char *tp = getenv("TERM_PROGRAM"), *ct = getenv("COLORTERM");
     int modern = (tp && *tp) || (ct && *ct);
     int old = !modern && (!term || strstr(term, "vt") || strcmp(term, "ansi") == 0);
@@ -158,41 +153,41 @@ static void theme_init(void)
         };
         return;
     }
-    /* feste Palettenwerte: sieht in jedem Farbschema gleich aus */
+    /* fixed palette values: looks the same in every colour scheme */
     th = (theme_t){
-        "\033[0m\033[48;5;16m",               /* reset: schwarzer Hintergrund */
-        "\033[38;5;37;48;5;16m",               /* Rahmen: türkis */
-        "\033[38;5;231;48;5;124m",             /* Titelbalken: weiss auf rot */
-        "\033[38;5;120;48;5;16m",              /* Ziffern: hellgrün */
-        "\033[38;5;120;48;5;16m",              /* Einträge: hellgrün */
-        "\033[38;5;16;48;5;250m",              /* Auswahl: schwarz auf grau */
-        "\033[38;5;166;48;5;16m",              /* "MENÜ 1 VON 2": orange */
-        "\033[38;5;16;48;5;250m",              /* Beschreibungsleiste */
-        "\033[38;5;160;48;5;16m",              /* Datum: rot */
-        "\033[38;5;166;48;5;16m",              /* Benutzer@Rechner: orange */
-        "\033[38;5;120;48;5;16m"               /* Hinweis H für Hilfe */
+        "\033[0m\033[48;5;16m",               /* reset: black background */
+        "\033[38;5;37;48;5;16m",               /* frame: teal */
+        "\033[38;5;231;48;5;124m",             /* title bar: white on red */
+        "\033[38;5;120;48;5;16m",              /* numbers: light green */
+        "\033[38;5;120;48;5;16m",              /* items: light green */
+        "\033[38;5;16;48;5;250m",              /* selection: black on grey */
+        "\033[38;5;166;48;5;16m",              /* "MENU 1 OF 2": orange */
+        "\033[38;5;16;48;5;250m",              /* description bar */
+        "\033[38;5;160;48;5;16m",              /* date: red */
+        "\033[38;5;166;48;5;16m",              /* user@host: orange */
+        "\033[38;5;120;48;5;16m"               /* hint: H for help */
     };
 }
 
-/* ---------- Tasten ---------- */
+/* ---------- Keys ---------- */
 
 typedef enum {
     K_NONE, K_TICK, K_UP, K_DOWN, K_ENTER, K_BACK, K_QUIT, K_DIGIT, K_HELP, K_CLICK, K_EOF
 } key_t_;
 
-static int mx, my;                         /* Ort des letzten Mausklicks (ab 1) */
+static int mx, my;                         /* position of the last mouse click (from 1) */
 
 static key_t_ mouse_event(int b, int x, int y, int release)
 {
-    if (b & 64) return (b & 1) ? K_DOWN : K_UP;      /* Mausrad */
-    if (release || (b & 32) || (b & 3) != 0) return K_NONE;   /* nur linke Taste */
+    if (b & 64) return (b & 1) ? K_DOWN : K_UP;      /* mouse wheel */
+    if (release || (b & 32) || (b & 3) != 0) return K_NONE;   /* left button only */
     mx = x; my = y;
     return K_CLICK;
 }
 
 static key_t_ read_key(int *digit)
 {
-    /* höchstens 1 Sekunde warten, damit die Uhr weiterläuft */
+    /* wait at most 1 second so the clock keeps running */
     struct pollfd w = { STDIN_FILENO, POLLIN, 0 };
     int pr = poll(&w, 1, 1000);
     if (pr == 0) return K_TICK;
@@ -203,7 +198,7 @@ static key_t_ read_key(int *digit)
     if (n == 0) return K_EOF;
     if (n < 0) return (errno == EINTR) ? K_NONE : K_EOF;
 
-    if (c == 27) {                           /* Esc oder Pfeiltaste */
+    if (c == 27) {                           /* Esc or arrow key */
         struct pollfd p = { STDIN_FILENO, POLLIN, 0 };
         if (poll(&p, 1, 50) <= 0) return K_BACK;
         unsigned char intro;
@@ -211,7 +206,7 @@ static key_t_ read_key(int *digit)
         if (intro != '[' && intro != 'O') return K_NONE;
         unsigned char fin;
         if (read(STDIN_FILENO, &fin, 1) != 1) return K_NONE;
-        if (intro == '[' && fin == 'M') {    /* Maus, alte Form: 3 Bytes */
+        if (intro == '[' && fin == 'M') {    /* mouse, legacy form: 3 bytes */
             unsigned char m[3];
             for (int i = 0; i < 3; i++)
                 if (read(STDIN_FILENO, &m[i], 1) != 1) return K_NONE;
@@ -220,13 +215,13 @@ static key_t_ read_key(int *digit)
         }
         char pb[32];
         int pn = 0;
-        while (fin < 0x40) {                 /* Parameterbytes sammeln */
+        while (fin < 0x40) {                 /* collect parameter bytes */
             if (pn < (int)sizeof pb - 1) pb[pn++] = (char)fin;
             if (read(STDIN_FILENO, &fin, 1) != 1) return K_NONE;
         }
         pb[pn] = '\0';
         if (intro == '[' && pb[0] == '<' && (fin == 'M' || fin == 'm')) {
-            int b = 0, x = 0, y = 0;         /* Maus, SGR-Form: b;x;y */
+            int b = 0, x = 0, y = 0;         /* mouse, SGR form: b;x;y */
             if (sscanf(pb + 1, "%d;%d;%d", &b, &x, &y) != 3) return K_NONE;
             return mouse_event(b, x, y, fin == 'm');
         }
@@ -245,10 +240,10 @@ static key_t_ read_key(int *digit)
 static void wait_any_key(void)
 {
     unsigned char c;
-    if (read(STDIN_FILENO, &c, 1) < 0) { /* egal */ }
+    if (read(STDIN_FILENO, &c, 1) < 0) { /* ignore */ }
 }
 
-/* ---------- Zeichenhilfen ---------- */
+/* ---------- Drawing helpers ---------- */
 
 static int cols = 80, rows = 24;
 
@@ -261,14 +256,14 @@ static void get_size(void)
     }
 }
 
-static int u8len(const char *s)            /* Zeichen, nicht Bytes */
+static int u8len(const char *s)            /* characters, not bytes */
 {
     int n = 0;
     for (; *s; s++) if (((unsigned char)*s & 0xC0) != 0x80) n++;
     return n;
 }
 
-/* gibt höchstens maxc Zeichen aus, Rückgabe: Anzahl */
+/* prints at most maxc characters, returns the count */
 static int put_cut(const char *s, int maxc)
 {
     int c = 0;
@@ -286,7 +281,7 @@ static void spaces(int n) { while (n-- > 0) putchar(' '); }
 static void rep(const char *s, int n) { while (n-- > 0) fputs(s, stdout); }
 static void at(int row, int col) { printf("\033[%d;%dH", row, col); }
 
-/* Balken mit zentriertem Text */
+/* bar with centred text */
 static void bar(int row, int col, int w, const char *style, const char *text)
 {
     int len = u8len(text);
@@ -300,32 +295,32 @@ static void bar(int row, int col, int w, const char *style, const char *text)
     fputs(th.reset, stdout);
 }
 
-/* ---------- Bildschirmaufbau ----------
+/* ---------- Screen layout ----------
  *
- *  Zeile 0        Rahmen oben
- *  Zeile 1        Titelbalken
- *  Zeile 2        Trennlinie
- *  Zeile 3        "MENÜ n VON m"
- *  Zeile 4 ...    Einträge
- *  Zeile h-4      Beschreibungsleiste
- *  Zeile h-3      Trennlinie
- *  Zeile h-2      Datum und Uhrzeit, Benutzer@Rechner
- *  Zeile h-1      Rahmen unten
- *  Zeile h        "Drücken Sie H für Hilfe"
+ *  row 0          top frame
+ *  row 1          title bar
+ *  row 2          separator
+ *  row 3          "MENU n OF m"
+ *  row 4 ...      items
+ *  row h-4        description bar
+ *  row h-3        separator
+ *  row h-2        date and time, user@host
+ *  row h-1        bottom frame
+ *  row h          "Press H for help"
  */
 
-static struct { int x, y, w, h; } g;       /* Lage des Rahmens (ab 1) */
+static struct { int x, y, w, h; } g;       /* position of the frame (from 1) */
 static char hostinfo[128];
-static struct { int top, spacing, shown, col, w; size_t start; } lay;   /* für Mausklicks */
+static struct { int top, spacing, shown, col, w; size_t start; } lay;   /* for mouse clicks */
 
 #define MIN_COLS 60
 #define MIN_ROWS 16
 
 static void geometry(void)
 {
-    g.w = cols;                  /* der Rahmen füllt das ganze Fenster */
+    g.w = cols;                  /* the frame fills the whole window */
     g.x = 1;
-    g.h = rows - 1;              /* 1 Zeile bleibt für den Hilfehinweis */
+    g.h = rows - 1;              /* 1 row is left for the help hint */
     g.y = 1;
 }
 
@@ -359,11 +354,11 @@ static const char *item_desc(const menu_item_t *it, char *buf, size_t n)
 {
     if (it->desc) return it->desc;
     switch (it->type) {
-    case MENU_ITEM_RUN:  snprintf(buf, n, "Befehl: %s", it->arg); return buf;
-    case MENU_ITEM_MENU: return "Untermenü öffnen";
-    case MENU_ITEM_INFO: return "Text anzeigen";
-    case MENU_ITEM_BACK: return "Zurück zum vorigen Menü";
-    case MENU_ITEM_EXIT: return "Programm beenden";
+    case MENU_ITEM_RUN:  snprintf(buf, n, "Command: %s", it->arg); return buf;
+    case MENU_ITEM_MENU: return "Open submenu";
+    case MENU_ITEM_INFO: return "Show text";
+    case MENU_ITEM_BACK: return "Back to the previous menu";
+    case MENU_ITEM_EXIT: return "Quit the program";
     }
     return "";
 }
@@ -376,16 +371,16 @@ static void render(core_t *core)
     printf("%s\033[2J\033[H\033[?25l", th.reset);
 
     if (cols < MIN_COLS || rows < MIN_ROWS) {
-        printf("Terminal zu klein (mindestens %d x %d)", MIN_COLS, MIN_ROWS);
+        printf("Terminal too small (minimum %d x %d)", MIN_COLS, MIN_ROWS);
         fflush(stdout);
         return;
     }
     geometry();
     int x = g.x, y = g.y, w = g.w, h = g.h;
 
-    /* Rahmen */
-    const char *fs = th.frame, *ss = th.frame;         /* Stil: Rahmen, Trennlinien */
-    if (frame_solid) {                                  /* Farbflächen statt Zeichen */
+    /* frame */
+    const char *fs = th.frame, *ss = th.frame;         /* style: frame, separators */
+    if (frame_solid) {                                  /* coloured areas instead of characters */
         fs = (color_mode == 2) ? "\033[48;5;37m" : (color_mode == 1) ? "\033[46m" : "\033[7m";
     }
     fputs(fs, stdout);
@@ -394,7 +389,7 @@ static void render(core_t *core)
         at(y + r, x);         fputs(fr->v, stdout);
         at(y + r, x + w - 1); fputs(fr->v, stdout);
     }
-    if (!frame_solid) {                                 /* Farbrahmen braucht keine Trennlinien */
+    if (!frame_solid) {                                 /* coloured frame needs no separators */
         fputs(ss, stdout);
         at(y + 2, x);     fputs(fr->sl, stdout); rep(fr->sh, w - 2); fputs(fr->sr, stdout);
         at(y + h - 3, x); fputs(fr->sl, stdout); rep(fr->sh, w - 2); fputs(fr->sr, stdout);
@@ -403,14 +398,14 @@ static void render(core_t *core)
     at(y + h - 1, x); fputs(fr->bl, stdout); rep(fr->h, w - 2); fputs(fr->br, stdout);
     fputs(th.reset, stdout);
 
-    /* Titelbalken und "MENÜ n VON m" */
+    /* title bar and "MENU n OF m" */
     bar(y + 1, x + 2, w - 4, th.title, v.title);
     char mb[48];
-    snprintf(mb, sizeof mb, "MENÜ %zu VON %zu", v.menu_index + 1, v.menu_count);
+    snprintf(mb, sizeof mb, "MENU %zu OF %zu", v.menu_index + 1, v.menu_count);
     at(y + 3, x + w - 2 - u8len(mb));
     printf("%s%s%s", th.menu, mb, th.reset);
 
-    /* Einträge: mit 1 Leerzeile dazwischen, wenn es Platz hat; Block ungefähr mittig */
+    /* items: one blank row between them if there is room; block roughly centred */
     int items_h = h - 9;
     int n = (int)v.item_count;
     int spacing = (n > 1) ? (items_h - 1) / (n - 1) : 1;
@@ -422,13 +417,13 @@ static void render(core_t *core)
     if (top < 0) top = 0;
     size_t start = (v.current_index >= (size_t)visible)
                    ? v.current_index - (size_t)visible + 1 : 0;
-    int maxlen = 0;                      /* breitester Eintrag bestimmt die Blockbreite */
+    int maxlen = 0;                      /* widest item sets the block width */
     for (int k = 0; k < shown && start + (size_t)k < v.item_count; k++) {
         int l = u8len(v.items[start + (size_t)k].label);
         if (l > maxlen) maxlen = l;
     }
     if (maxlen > w - 14) maxlen = w - 14;
-    int blockw = 4 + 1 + maxlen + 1;     /* "N - " + Eintrag mit je 1 Leerzeichen Rand */
+    int blockw = 4 + 1 + maxlen + 1;     /* "N - " + item with 1 space margin each side */
     int col = x + 1 + (w - 2 - blockw) / 2;
     if (col < x + 2) col = x + 2;
     int avail = (x + w - 2) - (col + 4) - 2;
@@ -451,15 +446,15 @@ static void render(core_t *core)
         }
     }
 
-    /* Beschreibungsleiste */
+    /* description bar */
     char buf[300];
     bar(y + h - 4, x + 3, w - 6, th.desc,
         item_desc(&v.items[v.current_index], buf, sizeof buf));
 
     draw_footer();
 
-    /* Hinweis unter dem Rahmen */
-    const char *help = "Drücken Sie H für Hilfe";
+    /* hint below the frame */
+    const char *help = "Press H for help";
     at(y + h, x + (w - u8len(help)) / 2);
     printf("%s%s%s", th.help, help, th.reset);
     char vb[32];
@@ -470,11 +465,11 @@ static void render(core_t *core)
     fflush(stdout);
 }
 
-/* ---------- Aktionen ---------- */
+/* ---------- Actions ---------- */
 
 static void run_command(const char *cmd)
 {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_tio);   /* normaler Modus für das Programm */
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_tio);   /* normal mode for the program */
     raw_active = 0;
     printf("\033[0m\033[2J\033[H\033[?25h");
     fflush(stdout);
@@ -484,11 +479,11 @@ static void run_command(const char *cmd)
 
     if (rc != 0) {
         if (rc != -1 && WIFEXITED(rc))
-            printf("\n[Befehl endete mit Fehlercode %d]\n", WEXITSTATUS(rc));
+            printf("\n[Command exited with code %d]\n", WEXITSTATUS(rc));
         else
-            printf("\n[Befehl konnte nicht ausgeführt werden]\n");
+            printf("\n[Command could not be run]\n");
     }
-    printf("\nTaste drücken ...");
+    printf("\nPress any key ...");
     fflush(stdout);
     raw_on();
     wait_any_key();
@@ -499,14 +494,14 @@ static void run_command(const char *cmd)
 static void show_info(const char *text)
 {
     mouse_set(0);
-    printf("\033[0m\033[2J\033[H%s\n\nTaste drücken ...", text);
+    printf("\033[0m\033[2J\033[H%s\n\nPress any key ...", text);
     fflush(stdout);
     wait_any_key();
     tcflush(STDIN_FILENO, TCIFLUSH);
     mouse_set(1);
 }
 
-/* ---------- Passwortfenster ---------- */
+/* ---------- Password window ---------- */
 
 static void dline(int row, int left, int w, const char *style, const char *text)
 {
@@ -530,22 +525,22 @@ static void draw_dialog(const char *label, int stars, const char *msg)
     char buf[128];
     int i;
 
-    bar(top, left, w, th.title, "Passwort");
+    bar(top, left, w, th.title, "Password");
     dline(top + 1, left, w, th.sel, "");
-    snprintf(buf, sizeof buf, "Eintrag: %s", label);
+    snprintf(buf, sizeof buf, "Item: %s", label);
     dline(top + 2, left, w, th.sel, buf);
-    snprintf(buf, sizeof buf, "Passwort: ");
+    snprintf(buf, sizeof buf, "Password: ");
     for (i = 0; i < stars && i < 40; i++) strcat(buf, "*");
     dline(top + 3, left, w, th.sel, buf);
     dline(top + 4, left, w, th.sel, "");
     if (msg) bar(top + 5, left, w, th.title, msg);
     else     dline(top + 5, left, w, th.sel, "");
-    dline(top + 6, left, w, th.sel, "Enter = OK     Esc = Abbrechen");
+    dline(top + 6, left, w, th.sel, "Enter = OK     Esc = Cancel");
     at(rows, 1);
     fflush(stdout);
 }
 
-/* 1 = Passwort stimmt, 0 = abgebrochen oder 3 Fehlversuche */
+/* 1 = password correct, 0 = cancelled or 3 failed attempts */
 static int ask_password(const char *label, const char *hash)
 {
     char pw[128];
@@ -564,13 +559,13 @@ static int ask_password(const char *label, const char *hash)
 
         unsigned char c;
         ssize_t n = read(STDIN_FILENO, &c, 1);
-        if (n < 0 && errno == EINTR) continue;        /* Fenster verändert: neu zeichnen */
+        if (n < 0 && errno == EINTR) continue;        /* window changed: redraw */
         if (n <= 0) break;
         if (c == 27) {
             struct pollfd p = { STDIN_FILENO, POLLIN, 0 };
-            if (poll(&p, 1, 50) <= 0) break;          /* einzelnes Esc = abbrechen */
+            if (poll(&p, 1, 50) <= 0) break;          /* lone Esc = cancel */
             while (poll(&p, 1, 20) > 0 && read(STDIN_FILENO, &c, 1) == 1) { }
-            continue;                                 /* Pfeiltasten usw. ignorieren */
+            continue;                                 /* ignore arrow keys etc. */
         }
         if (c == 3) break;
         if (c == '\r' || c == '\n') {
@@ -578,14 +573,14 @@ static int ask_password(const char *label, const char *hash)
             tries++;
             len = 0; pw[0] = '\0';
             if (tries >= 3) {
-                draw_dialog(label, 0, "3 Fehlversuche, bitte warten ...");
+                draw_dialog(label, 0, "3 failed attempts, please wait ...");
                 sleep(3);
                 break;
             }
-            draw_dialog(label, 0, "Falsches Passwort");
+            draw_dialog(label, 0, "Wrong password");
             sleep(1);
             tcflush(STDIN_FILENO, TCIFLUSH);
-            msg = "Falsches Passwort, nochmal versuchen";
+            msg = "Wrong password, try again";
         } else if (c == 127 || c == 8) {
             while (len > 0 && ((unsigned char)pw[len - 1] & 0xC0) == 0x80) len--;
             if (len > 0) len--;
@@ -609,15 +604,15 @@ static const char *find_hash(const char *name)
 }
 
 static const char *HELP_TEXT =
-    "Tasten\n\n"
-    "  Pfeil hoch / runter   Eintrag wählen\n"
-    "  Enter                 Eintrag ausführen\n"
-    "  Maus                  Klick = ausführen, Rad = wählen\n"
-    "  1 bis 9               Eintrag direkt ausführen\n"
-    "  Esc oder Backspace    ein Menü zurück\n"
-    "  H                     diese Hilfe";
+    "Keys\n\n"
+    "  Up / Down arrow       select an item\n"
+    "  Enter                 run the item\n"
+    "  Mouse                 click = run, wheel = select\n"
+    "  1 to 9                run an item directly\n"
+    "  Esc or Backspace      back one menu\n"
+    "  H                     this help";
 
-static const char *HELP_CTRLC = "\n  Ctrl-C                Programm beenden";
+static const char *HELP_CTRLC = "\n  Ctrl-C                quit the program";
 
 /* ---------- main ---------- */
 
@@ -625,19 +620,19 @@ static void usage(const char *prog)
 {
     fprintf(stderr,
         "automenu %s\n"
-        "Aufruf:  %s [datei.mdf]        Menü starten\n"
-        "         %s --kiosk [datei]    Menü starten, Ctrl-C beendet nicht\n"
-        "         %s --check [datei]    Menüdatei nur prüfen\n"
-        "         %s --hash [name]      Passwort-Zeile für die Menüdatei erzeugen\n"
+        "Usage:   %s [file.mdf]         start the menu\n"
+        "         %s --kiosk [file]     start the menu, Ctrl-C does not quit\n"
+        "         %s --check [file]     check the menu file only\n"
+        "         %s --hash [name]      create a password line for the menu file\n"
         "         %s --version\n"
-        "Ohne Datei wird menu.mdf (sonst menu.txt) gesucht in:\n"
+        "Without a file, menu.mdf (else menu.txt) is searched in:\n"
         "  $XDG_CONFIG_HOME/automenu/\n"
         "  ~/.config/automenu/\n"
         "  %s/automenu/\n",
         AUTOMENU_VERSION, prog, prog, prog, prog, prog, SYSCONFDIR);
 }
 
-/* Standard-Menüdatei suchen (menu.mdf, sonst menu.txt). Rückgabe: 1 = gefunden. */
+/* Find the default menu file (menu.mdf, else menu.txt). Returns 1 if found. */
 static int find_default_menu(char *buf, size_t n)
 {
     static const char *names[] = { "menu.mdf", "menu.txt" };
@@ -659,7 +654,7 @@ static int find_default_menu(char *buf, size_t n)
     return 0;
 }
 
-/* Eingabe ohne Echo (wenn stdin ein Terminal ist) */
+/* Read input without echo (if stdin is a terminal) */
 static int read_secret(const char *prompt, char *out, size_t n)
 {
     struct termios t, o;
@@ -674,19 +669,19 @@ static int read_secret(const char *prompt, char *out, size_t n)
     return 1;
 }
 
-/* automenu --hash [name]: fragt zweimal und druckt die password-Zeile */
+/* automenu --hash [name]: asks twice and prints the password line */
 static int make_password_line(const char *name)
 {
     char a[128], b[128], hash[AUTH_HASH_MAX];
     uint8_t salt[16];
 
-    if (!read_secret("Passwort: ", a, sizeof a) ||
-        !read_secret("Wiederholen: ", b, sizeof b)) return 1;
-    if (strcmp(a, b) != 0) { fprintf(stderr, "Die Eingaben sind verschieden.\n"); return 1; }
-    if (!a[0]) { fprintf(stderr, "Leeres Passwort nicht erlaubt.\n"); return 1; }
+    if (!read_secret("Password: ", a, sizeof a) ||
+        !read_secret("Repeat: ", b, sizeof b)) return 1;
+    if (strcmp(a, b) != 0) { fprintf(stderr, "The two entries differ.\n"); return 1; }
+    if (!a[0]) { fprintf(stderr, "An empty password is not allowed.\n"); return 1; }
     FILE *f = fopen("/dev/urandom", "rb");
     if (!f || fread(salt, 1, sizeof salt, f) != sizeof salt) {
-        fprintf(stderr, "Kein Zufall verfügbar (/dev/urandom).\n");
+        fprintf(stderr, "No random source available (/dev/urandom).\n");
         if (f) fclose(f);
         return 1;
     }
@@ -703,7 +698,7 @@ int main(int argc, char **argv)
     const char *path = NULL;
     char found[1024];
 
-    setlocale(LC_ALL, "");                   /* Monatsnamen in der eigenen Sprache */
+    setlocale(LC_ALL, "");                   /* month names in the system language */
 
     int i = 1;
     if (i < argc && strcmp(argv[i], "--version") == 0) {
@@ -722,7 +717,7 @@ int main(int argc, char **argv)
 
     if (!path) {
         if (!find_default_menu(found, sizeof found)) {
-            fprintf(stderr, "Keine Menüdatei gefunden.\n\n");
+            fprintf(stderr, "No menu file found.\n\n");
             usage(argv[0]);
             return 1;
         }
@@ -732,26 +727,26 @@ int main(int argc, char **argv)
     if (!mdf_load_file(path, &cfg)) return 1;
 
     if (check_only) {
-        printf("%s: ok (%zu Menüs, %zu Passwörter)\n", path, cfg.menu_count, cfg.password_count);
+        printf("%s: ok (%zu menus, %zu passwords)\n", path, cfg.menu_count, cfg.password_count);
         mdf_free(&cfg);
         return 0;
     }
 
     core_t *core = core_create();
     if (!core || !core_load(core, cfg.menus, cfg.menu_count)) {
-        fprintf(stderr, "Startmenü ist leer oder ungültig\n");
+        fprintf(stderr, "The start menu is empty or invalid\n");
         mdf_free(&cfg);
         return 1;
     }
 
     if (tcgetattr(STDIN_FILENO, &orig_tio) != 0) {
-        fprintf(stderr, "automenu braucht ein Terminal (stdin ist keines)\n");
+        fprintf(stderr, "automenu needs a terminal (stdin is not one)\n");
         mdf_free(&cfg);
         core_destroy(core);
         return 1;
     }
 
-    {   /* "benutzer@rechner" für die Fusszeile */
+    {   /* "user@host" for the footer */
         const char *user = getenv("USER");
         char host[64] = "";
         gethostname(host, sizeof host - 1);
@@ -770,7 +765,7 @@ int main(int argc, char **argv)
     {
         struct sigaction sa;
         memset(&sa, 0, sizeof sa);
-        sa.sa_handler = on_winch;            /* ohne SA_RESTART: poll() kehrt zurück */
+        sa.sa_handler = on_winch;            /* without SA_RESTART: poll() returns */
         sigemptyset(&sa.sa_mask);
         sigaction(SIGWINCH, &sa, NULL);
     }
@@ -786,10 +781,10 @@ int main(int argc, char **argv)
         key_t_ k = read_key(&digit);
         if (k == K_EOF || k == K_QUIT) break;
 
-        if (k == K_TICK) {                   /* Uhr nachführen, Fenstergrösse prüfen */
+        if (k == K_TICK) {                   /* update the clock, check the window size */
             if (blacked) continue;
             if (cfg.blackout_s > 0 && time(NULL) - last_act >= cfg.blackout_s) {
-                blacked = 1;                 /* Blackout: schwarzer Schirm bis zur nächsten Eingabe */
+                blacked = 1;                 /* blackout: black screen until the next input */
                 printf("\033[0m\033[40m\033[2J\033[H\033[?25l");
                 fflush(stdout);
                 continue;
@@ -801,7 +796,7 @@ int main(int argc, char **argv)
             continue;
         }
         last_act = time(NULL);
-        if (blacked) {                       /* erste Eingabe weckt nur auf */
+        if (blacked) {                       /* first input only wakes up */
             blacked = 0;
             need_render = 1;
             continue;
@@ -832,7 +827,7 @@ int main(int argc, char **argv)
         }
 
         const char *lname = core_locked_name(core);
-        if (lname) {                         /* gesperrter Eintrag: erst Passwort */
+        if (lname) {                         /* locked item: ask for the password first */
             const char *hash = find_hash(lname);
             render(core);
             if (hash && ask_password(core_locked_label(core), hash)) core_unlock_ok(core);

@@ -1,24 +1,24 @@
-# Beispielmenü. Starten mit:  ./automenu examples/menu.mdf
-# Das erste Menü in der Datei ist immer das Startmenü.
+# Example menu. Start it with:  ./automenu examples/menu.mdf
+# The first menu in the file is always the start menu.
 
-# Einstellungen (alle optional, ohne Zeile gilt der Standard)
-# set blackout 300      nach 300 Sekunden ohne Eingabe wird der Schirm schwarz
-# set clock utc         Uhr in UTC statt Ortszeit
-# set mouse off         Maus abschalten
+# Settings (all optional, without a line the default applies)
+# set blackout 300      the screen goes black after 300 seconds without input
+# set clock utc         clock in UTC instead of local time
+# set mouse off         switch the mouse off
 #
-# Passwortschutz: Zeile erzeugen mit  automenu --hash admin  und hier einfügen:
+# Password protection: create a line with  automenu --hash admin  and paste it here:
 # password admin pbkdf2-sha256:...
-# Dann beim Eintrag:  item "Neustart" lock admin run sudo reboot
+# Then, on the item:  item "Reboot" lock admin run sudo reboot
 
 menu start "Automenu"
-  item "Datum und Uhrzeit"     run date
-  item "Wer bin ich"           run whoami; hostname
-  item "Dateien im Ordner"     run ls -l
-  item "Werkzeuge"             menu tools
-  item "Über dieses Menü"      info Automenu\nEin Menü wie damals.
-  item "Beenden"               exit
+  item "Date and time"         run date
+  item "Who am I"              run whoami; hostname
+  item "Files in this folder"  run ls -l
+  item "Tools"                 menu tools
+  item "About this menu"       info Automenu\nA menu like in the old days.
+  item "Quit"                  exit
 
-menu tools "Werkzeuge"
-  item "Speicherplatz"         run df -h
-  item "Laufende Programme"    run ps aux | head -20
-  item "Zurück"                back
+menu tools "Tools"
+  item "Disk space"            run df -h
+  item "Running programs"      run ps aux | head -20
+  item "Back"                  back

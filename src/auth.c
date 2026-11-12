@@ -23,7 +23,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* auth.c - SHA-256, HMAC, PBKDF2. Reines C, ohne Abhaengigkeiten. */
+/* auth.c - SHA-256, HMAC, PBKDF2. Plain C, no dependencies. */
 #include "auth.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -185,7 +185,7 @@ int auth_make_hash(const char *pw, const uint8_t salt[16], unsigned iter,
     return n > 0 && (size_t)n < outsz;
 }
 
-/* Zerlegt; liefert 1 bei gueltigem Format. */
+/* Splits the string; returns 1 for a valid format. */
 static int split(const char *st, unsigned *iter, uint8_t salt[16], uint8_t hash[32])
 {
     const char *p; char *e; unsigned long it;

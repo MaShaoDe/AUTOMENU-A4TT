@@ -1,8 +1,8 @@
-# Beispiel für den Funkraum. Anpassen nach Belieben.
+# Example for the radio shack. Adapt as you like.
 
-menu start "Funkraum"
-  item "UTC-Zeit"              run date -u
-  item "Kalender"                run cal
-  item "Netzwerk prüfen"       run ping -c 3 1.1.1.1
-  item "Logbuch öffnen"        run ${EDITOR:-vi} ~/logbuch.txt
-  item "Beenden"               exit
+menu start "Radio Shack"
+  item "UTC time"              run date -u
+  item "Calendar"              run cal
+  item "Check the network"     run ping -c 3 1.1.1.1
+  item "Open the log book"     run ${EDITOR:-vi} ~/logbook.txt
+  item "Quit"                  exit

@@ -1,17 +1,16 @@
-# Automenu - läuft mit BSD make (FreeBSD, macOS) und GNU make (Linux)
+# Automenu - works with BSD make (FreeBSD, macOS) and GNU make (Linux)
 #
-#   make                 bauen
-#   make test            Tests ausführen
-#   make kiosk           Kiosk-Version bauen (Ctrl-C beendet nicht)
-#   make install         installieren nach PREFIX (Standard /usr/local)
+#   make                 build
+#   make test            run the tests
+#   make install         install to PREFIX (default /usr/local)
 #   make uninstall
 #   make clean
 #
-# Beispiele:
-#   sudo make install                    nach /usr/local
-#   make install PREFIX=$HOME/.local     ohne Admin-Rechte
+# Examples:
+#   sudo make install                    to /usr/local
+#   make install PREFIX=$HOME/.local     without admin rights
 
-VERSION    = 0.9.1
+VERSION    = 0.9.2
 PREFIX    ?= /usr/local
 SYSCONFDIR?= $(PREFIX)/etc
 DESTDIR   ?=
@@ -26,9 +25,6 @@ all: automenu
 
 automenu: $(SRCS) $(HDRS)
 	$(CC) $(CFLAGS) $(WARN) -Isrc $(DEFS) -o automenu $(SRCS)
-
-kiosk: $(SRCS) $(HDRS)
-	$(CC) $(CFLAGS) $(WARN) -Isrc $(DEFS) -DKIOSK -o automenu $(SRCS)
 
 test: tests/test_all.c src/core.c src/loader.c src/auth.c $(HDRS)
 	$(CC) $(CFLAGS) $(WARN) -Isrc -o test_all tests/test_all.c src/core.c src/loader.c src/auth.c
@@ -54,4 +50,4 @@ uninstall:
 clean:
 	rm -f automenu test_all
 
-.PHONY: all kiosk test install uninstall clean
+.PHONY: all test install uninstall clean

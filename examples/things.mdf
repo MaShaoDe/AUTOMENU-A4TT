@@ -1,13 +1,13 @@
-# Nachbau des Mockups "Automenu for the Things".
-# Zweiter Text in Anführungszeichen = Hilfetext in der grauen Leiste.
+# Recreation of the "Automenu for the Things" mockup.
+# The second quoted text is the help text in the grey bar.
 
 menu sensors "Automenu for the Things"
-  item "General Sensor Overview"   "Access detailed sensor data and configurations"   info Noch kein Sensor angeschlossen.
-  item "Temperature Readings"      "Show all temperature sensors"                     info Noch kein Sensor angeschlossen.
-  item "Humidity Levels"           "Show all humidity sensors"                        info Noch kein Sensor angeschlossen.
-  item "Motion Detectors & Presence"  "Show motion and presence detectors"            info Noch kein Sensor angeschlossen.
-  item "Analog Inputs & Voltage"   "Read analog inputs"                               info Noch kein Sensor angeschlossen.
-  item "Digital Inputs & GPIO"     "Read digital inputs and GPIO pins"                info Noch kein Sensor angeschlossen.
+  item "General Sensor Overview"   "Access detailed sensor data and configurations"   info No sensor connected yet.
+  item "Temperature Readings"      "Show all temperature sensors"                     info No sensor connected yet.
+  item "Humidity Levels"           "Show all humidity sensors"                        info No sensor connected yet.
+  item "Motion Detectors & Presence"  "Show motion and presence detectors"            info No sensor connected yet.
+  item "Analog Inputs & Voltage"   "Read analog inputs"                               info No sensor connected yet.
+  item "Digital Inputs & GPIO"     "Read digital inputs and GPIO pins"                info No sensor connected yet.
   item "System Menu"               "Manage system outputs and maintenance"            menu system
 
 menu system "Automenu for the Things"

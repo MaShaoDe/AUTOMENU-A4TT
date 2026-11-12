@@ -23,7 +23,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* core.h - Menükern: reine State Machine, kein IO, kein Rendering, kein Parsen */
+/* core.h - menu core: pure state machine, no IO, no rendering, no parsing */
 #ifndef AUTOMENU_CORE_H
 #define AUTOMENU_CORE_H
 
@@ -45,30 +45,30 @@ typedef struct {
     const menu_item_t *items;
     size_t item_count;
     size_t current_index;
-    size_t menu_index;   /* Position des Menüs in der Datei (ab 0) */
+    size_t menu_index;   /* position of the menu in the file (from 0) */
     size_t menu_count;
 } menu_view_t;
 
 core_t *core_create(void);
 void core_destroy(core_t *core);
 
-/* Das erste Menü ist das Startmenü. Rückgabe: 1 = ok, 0 = Fehler. */
+/* The first menu is the start menu. Returns 1 = ok, 0 = error. */
 int core_load(core_t *core, const menu_t *menus, size_t menu_count);
 
 void core_input(core_t *core, core_event_t event);
-void core_select_index(core_t *core, size_t index);  /* springt und wählt aus */
+void core_select_index(core_t *core, size_t index);  /* jumps to the item and selects it */
 
 menu_view_t core_view(const core_t *core);
 
-/* Ergebnisse abholen (liefern NULL, wenn nichts ansteht) */
+/* Collect results (return NULL if nothing is pending) */
 const char *core_poll_run(core_t *core);
 const char *core_poll_info(core_t *core);
 int core_should_exit(const core_t *core);
 
-/* Passwortschutz: Eine Auswahl auf einem gesperrten Eintrag führt nichts aus,
-   sondern setzt eine Abfrage. Der Adapter prüft das Passwort und ruft dann
-   core_unlock_ok() (Eintrag wird ausgeführt) oder core_unlock_cancel(). */
-const char *core_locked_name(const core_t *core);   /* NULL = keine Abfrage */
+/* Password lock: selecting a locked item does not run it but sets a prompt.
+   The adapter checks the password and then calls core_unlock_ok()
+   (the item is run) or core_unlock_cancel(). */
+const char *core_locked_name(const core_t *core);   /* NULL = no prompt */
 const char *core_locked_label(const core_t *core);
 void core_unlock_ok(core_t *core);
 void core_unlock_cancel(core_t *core);

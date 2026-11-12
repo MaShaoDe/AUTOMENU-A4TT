@@ -23,14 +23,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* loader.h - liest und prüft die Menüdefinitionsdatei (.mdf, siehe COOKBOOK.md) */
+/* loader.h - reads and checks the menu definition file (.mdf, see COOKBOOK.md) */
 #ifndef AUTOMENU_LOADER_H
 #define AUTOMENU_LOADER_H
 
 #include <stddef.h>
 #include "menu.h"
 
-/* Rückgabe: 1 = ok, 0 = Fehler (Meldung "name:zeile: text" auf stderr). */
+/* Returns 1 = ok, 0 = error (message "name:line: text" on stderr). */
 int mdf_parse_text(const char *text, const char *name, mdf_t *out);
 int mdf_load_file(const char *path, mdf_t *out);
 void mdf_free(mdf_t *m);

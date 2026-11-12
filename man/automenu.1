@@ -26,215 +26,211 @@
 .Os
 .Sh NAME
 .Nm automenu
-.Nd Textmenü im Stil der Auto-Menu-Systeme der 1980er Jahre
+.Nd text menu in the style of the Auto-Menu systems of the 1980s
 .Sh SYNOPSIS
 .Nm
-.Op Ar datei
+.Op Ar file
 .Nm
 .Fl \-kiosk
-.Op Ar datei
+.Op Ar file
 .Nm
 .Fl \-hash
 .Op Ar name
 .Nm
 .Fl \-check
-.Op Ar datei
+.Op Ar file
 .Nm
 .Fl \-version
 .Sh DESCRIPTION
 .Nm
-zeigt ein Menü, das aus einer Textdatei gelesen wird.
-Ein Tastendruck öffnet ein Untermenü, zeigt einen Text oder führt einen Befehl aus.
+shows a menu that is read from a text file.
+A key press opens a submenu, shows a text or runs a command.
 .Pp
-Bedienung: Pfeiltasten und Enter, die Ziffern 1 bis 9 wählen einen Eintrag direkt,
-ein Mausklick führt einen Eintrag aus, das Mausrad wählt,
-Esc oder Backspace gehen ein Menü zurück, Ctrl-C beendet das Programm.
+Use: arrow keys and Enter, the digits 1 to 9 select an item directly,
+a mouse click runs an item, the mouse wheel selects,
+Esc or Backspace go back one menu, Ctrl-C quits the program.
 .Pp
-Ohne
-.Ar datei
-wird die erste vorhandene Datei aus der Liste unter
+Without
+.Ar file
+the first existing file from the list under
 .Sx FILES
-verwendet.
+is used.
 .Pp
-Mit
+With
 .Fl \-kiosk
-beendet Ctrl-C das Programm nicht.
-Der Ausgang bleibt ein
+Ctrl-C does not quit the program.
+The way out remains an
 .Cm exit
-Eintrag, der mit einem Passwort gesperrt sein kann.
+item, which can be locked with a password.
 .Pp
-Mit
+With
 .Fl \-check
-wird die Datei nur geprüft.
-Fehler werden mit Zeilennummer gemeldet.
+the file is only checked.
+Errors are reported with the line number.
 .Pp
-Mit
+With
 .Fl \-hash
 .Op Ar name
-wird zweimal ein Passwort abgefragt (ohne Echo) und die passende
+a password is asked for twice (no echo) and the matching
 .Cm password
-Zeile für die Menüdatei ausgegeben.
+line for the menu file is printed.
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl \-kiosk
-Kiosk-Modus: Ctrl-C beendet das Programm nicht.
+Kiosk mode: Ctrl-C does not quit the program.
 .It Fl \-check
-Datei nur prüfen, Menü nicht starten.
+Only check the file, do not start the menu.
 .It Fl \-hash Op Ar name
-Passwort-Zeile erzeugen, ohne Name
+Create a password line, without a name
 .Dq admin .
 .It Fl \-version
-Versionsnummer ausgeben.
+Print the version number.
 .El
 .Pp
-Vor der Datei steht höchstens eine Option.
+At most one option may stand before the file.
 .Sh PASSWORDS
-Einzelne Einträge lassen sich mit einem Passwort sperren.
-Zuerst wird die Zeile erzeugt:
+Single items can be locked with a password.
+First create the line:
 .Pp
 .Dl automenu \-\-hash admin
 .Pp
-Die ausgegebene
+The printed
 .Cm password
-Zeile gehört in die Menüdatei, beim Eintrag steht
+line belongs into the menu file, and the item gets
 .Cm lock admin
-vor dem Typ.
-Der Name ist frei wählbar und hat nichts mit Benutzerkonten zu tun.
-Gespeichert wird nur ein Hash (PBKDF2-HMAC-SHA-256, 20000 Runden, zufälliges Salz).
+before its type.
+The name is freely chosen and has nothing to do with user accounts.
+Only a hash is stored (PBKDF2-HMAC-SHA-256, 20000 rounds, random salt).
 .Pp
-Bei jeder Auswahl eines gesperrten Eintrags wird das Passwort neu abgefragt.
-Nach einem falschen Passwort gibt es 1 Sekunde Wartezeit,
-nach 3 Fehlversuchen geht es mit 3 Sekunden Wartezeit zurück ins Menü.
-Ein ganzes Menü lässt sich nicht sperren, nur der Eintrag, der dorthin führt.
-Ein vergessenes Passwort wird ersetzt, indem die
+The password is asked again on every selection of a locked item.
+After a wrong password there is a wait of 1 second,
+after 3 failed attempts the menu is shown again after a wait of 3 seconds.
+A whole menu cannot be locked, only the item that leads to it.
+A forgotten password is replaced by replacing the
 .Cm password
-Zeile in der Datei durch eine neue ersetzt wird.
+line in the file with a new one.
 .Sh SECURITY
-Der Passwortschutz und die Option
+The password lock and the option
 .Fl \-kiosk
-sind eine Sperre gegen Neugierige und Versehen, keine Sicherheitsfunktion.
-Wer die Menüdatei lesen kann, kann die Befehle direkt in der Shell ausführen.
-Ctrl-C beendet im normalen Modus das Programm ohne Passwort.
+are a lock against the curious and against mistakes, not a security feature.
+Whoever can read the menu file can run the commands directly in the shell.
+In normal mode Ctrl-C quits the program without a password.
 .Fl \-kiosk
-sperrt nur Ctrl-C.
-Fenster schliessen, SSH oder eine zweite Shell bleiben möglich,
-und Programme mit Shell-Funktion wie
+locks only Ctrl-C.
+Closing the window, SSH or a second shell remain possible,
+and programs with a shell function such as
 .Xr vi 1
-oder
+or
 .Xr top 1
-führen aus dem Menü hinaus.
-Die Menüdatei sollte nur dem Benutzer gehören und nur für ihn lesbar sein
+lead out of the menu.
+The menu file should be owned by the user and readable only by that user
 .Pq Ql chmod 600 .
-Wo echte Sicherheit gebraucht wird, sind die Benutzerrechte des Systems zuständig.
+Where real security is needed, the user rights of the system are responsible.
 .Sh FILES
-Reihenfolge der Suche:
+Search order:
 .Bl -tag -width Ds
 .It Pa $XDG_CONFIG_HOME/automenu/menu.mdf
 .It Pa ~/.config/automenu/menu.mdf
 .It Pa PREFIX/etc/automenu/menu.mdf
-Systemweite Vorgabe.
-In jedem Ordner wird zuerst
-.Pa menu.mdf ,
-danach
-.Pa menu.txt
-gesucht.
+System-wide default.
+In each folder
+.Pa menu.mdf
+is searched first, then
+.Pa menu.txt .
 .It Pa PREFIX/etc/automenu/menu.mdf.sample
-Beispiel, wird bei der Installation angelegt.
+Example, installed with the program.
 .It Pa PREFIX/share/examples/automenu/
-Weitere Beispiele.
+More examples.
 .El
 .Sh FILE FORMAT
-Eine Zeile pro Eintrag.
-Leere Zeilen und Zeilen, die mit
+One line per entry.
+Empty lines and lines starting with
 .Ql #
-beginnen, werden ignoriert.
-Das erste Menü der Datei ist das Startmenü.
+are ignored.
+The first menu in the file is the start menu.
 .Bl -tag -width Ds
-.It Cm menu Ar id Qq Titel
-Beginnt ein neues Menü.
-.It Cm item Qq Text Cm run Ar befehl
-Führt den Befehl mit
-.Xr sh 1
-aus.
+.It Cm menu Ar id Qq Title
+Starts a new menu.
+.It Cm item Qq Text Cm run Ar command
+Runs the command with
+.Xr sh 1 .
 .It Cm item Qq Text Cm menu Ar id
-Öffnet ein anderes Menü.
+Opens another menu.
 .It Cm item Qq Text Cm info Op Ar text
-Zeigt einen Text an.
+Shows a text.
 .It Cm item Qq Text Cm back
-Geht zurück.
+Goes back.
 .It Cm item Qq Text Cm exit
-Beendet das Programm.
-.It Cm item Qq Text Op Qq Hilfetext Cm lock Ar name ...
-Sperrt den Eintrag: vor der Ausführung wird das Passwort
+Quits the program.
+.It Cm item Qq Text Op Qq Help text Cm lock Ar name ...
+Locks the item: before it is run the password
 .Ar name
-abgefragt, jedes Mal neu.
-Nach 3 Fehlversuchen geht es zurück ins Menü.
+is asked for, every time.
+After 3 failed attempts the menu is shown again.
 .It Cm password Ar name Ar hash
-Definiert ein Passwort (Hash mit
-.Fl \-hash
-erzeugen).
-.It Cm set blackout Ar sekunden
-Schirm nach dieser Zeit ohne Eingabe schwarz schalten, 0 = aus.
+Defines a password (create the hash with
+.Fl \-hash ) .
+.It Cm set blackout Ar seconds
+Blank the screen after this time without input, 0 = off.
 .It Cm set clock Ar utc|local
-Uhr in UTC oder Ortszeit.
+Clock in UTC or local time.
 .It Cm set mouse Ar on|off
-Maus ein oder aus, Vorgabe on.
+Mouse on or off, default on.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
 .It Ev XDG_CONFIG_HOME
-Ort der Benutzerkonfiguration, Vorgabe
+Location of the user configuration, default
 .Pa ~/.config .
 .It Ev NO_COLOR
-Gesetzt: keine Farben, nur invertierte Darstellung.
+If set: no colours, inverse video only.
 .It Ev AUTOMENU_COLORS
 .Ql 256 ,
 .Ql 16
-oder
+or
 .Ql mono
-erzwingt die Farbtiefe.
+forces the colour depth.
 .It Ev AUTOMENU_FRAME
 .Ql solid
-(Vorgabe, Farbflächen),
+(default, coloured areas),
 .Ql lines
-(Doppellinien, braucht eine Schrift mit Linienzeichen) oder
+(double lines, needs a font with line characters) or
 .Ql ascii .
 .El
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
 .Bd -literal -offset indent
-menu start "Mein Menü"
-  item "Datum"    run date
-  item "Beenden"  exit
+menu start "My menu"
+  item "Date"   run date
+  item "Quit"   exit
 .Ed
 .Sh HISTORY
-Die Idee stammt von
+The idea comes from
 .Em Automenu
-von Marshall W. Magee und Magee Enterprises, Inc. (Norcross, Georgia, USA).
-Das Programm erschien ab 1983 für MS-DOS als Shareware und erlaubte es,
-mit einer Menüdefinitionsdatei (MDF, Menu Definition File) Programme
-und Befehle mit einem einzigen Tastendruck zu starten.
-Es war schnell, einfach zu bedienen und für unzählige Anwender auf der ganzen
-Welt eine geniale Lösung.
-Heute wird es nicht mehr vertrieben und ist nur noch in Archiven zu finden.
+by Marshall W. Magee and Magee Enterprises, Inc. (Norcross, Georgia, USA).
+The program appeared from 1983 for MS-DOS as shareware and made it possible
+to start programs and commands with a single key press
+using a menu definition file (MDF, Menu Definition File).
+It was fast, easy to use and a brilliant solution for countless users all over the world.
+Today it is no longer sold and can only be found in archives.
 .Pp
-Dieses
+This
 .Nm
-ist eine unabhängige Neuentwicklung in C für macOS, Linux und FreeBSD,
-später auch für den ESP32.
-Es enthält keinen Code des Originals.
-Menüdefinitionsdatei und Aussehen erinnern bewusst an das Vorbild.
+is an independent new implementation in C for macOS, Linux and FreeBSD,
+and later for the ESP32.
+It contains no code of the original.
+The menu definition file and the look deliberately recall the original.
 .Pp
-Der Name Automenu ist eine Hommage an das Original.
-Dieses Projekt steht in keiner Verbindung zu Magee Enterprises, Inc.
-Alle Marken gehören ihren jeweiligen Inhabern.
+The name Automenu is a homage to the original.
+This project has no connection to Magee Enterprises, Inc.
+All trademarks belong to their respective owners.
 .Sh AUTHORS
-.An Marcel Sauder Aq marcel@sauder.ch ,
+.An Marcel Sauder ,
 FerienBSD.
 .Sh LICENSE
-Open Source unter der BSD-2-Clause-Lizenz.
-Quellcode, Fehlermeldungen und Weiterentwicklung auf GitHub:
+Open source under the BSD 2-Clause licence.
+Source code, bug reports and further development on GitHub:
 .Lk https://github.com/MaShaoDe/AUTOMENU-A4TT
 .Pp
 Copyright (c) 2026, FerienBSD aka Marcel Sauder

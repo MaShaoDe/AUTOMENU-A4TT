@@ -1,11 +1,12 @@
-FreeBSD-Port (Gerüst, auf FreeBSD noch nicht getestet)
+FreeBSD port (skeleton, not yet tested on FreeBSD)
 
-Schritte auf einem FreeBSD-Rechner:
- 1. Im GitHub-Repo den Tag v0.2.1 setzen (git tag v0.2.1 && git push --tags).
- 2. Ordner automenu/ nach /usr/ports/misc/automenu kopieren.
- 3. MAINTAINER in der Makefile eintragen.
- 4. cd /usr/ports/misc/automenu && make makesum     (erzeugt distinfo)
+Steps on a FreeBSD machine:
+ 1. Set the tag vX.Y.Z (matching DISTVERSION in the port Makefile) in the GitHub repo
+    (git tag vX.Y.Z && git push --tags).
+ 2. Copy the folder automenu/ to /usr/ports/misc/automenu.
+ 3. Enter MAINTAINER in the Makefile.
+ 4. cd /usr/ports/misc/automenu && make makesum     (creates distinfo)
  5. make stage && make check-plist
  6. portlint -AC
- 7. Test sauber mit poudriere: poudriere testport -j <jail> -p <tree> misc/automenu
-Danach kann das Paket mit "make package" gebaut oder der Port bei FreeBSD eingereicht werden.
+ 7. Clean test with poudriere: poudriere testport -j <jail> -p <tree> misc/automenu
+Afterwards the package can be built with "make package" or the port can be submitted to FreeBSD.
