@@ -17,6 +17,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <stdint.h>
+
+#include "auth.h"
 #include "core.h"
 #include "loader.h"
 #include "version.h"
@@ -25,6 +28,8 @@
 #ifndef SYSCONFDIR
 #define SYSCONFDIR "/usr/local/etc"
 #endif
+
+static mdf_t cfg;                          /* geladene Menüdefinition (.mdf) */
 
 /* ---------- Terminalmodus ---------- */
 
@@ -37,8 +42,9 @@ static void restore_terminal(void)
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_tio);
         raw_active = 0;
     }
-    /* Farben zurücksetzen, Cursor wieder zeigen */
-    if (write(STDOUT_FILENO, "\033[0m\033[?25h", 10) < 0) { /* egal */ }
+    /* Maus aus, Farben zurücksetzen, Cursor wieder zeigen */
+    static const char reset[] = "\033[?1000l\033[?1006l\033[0m\033[?25h";
+    if (write(STDOUT_FILENO, reset, sizeof reset - 1) < 0) { /* egal */ }
 }
 
 static void raw_on(void)
@@ -50,6 +56,13 @@ static void raw_on(void)
     raw.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
     raw_active = 1;
+}
+
+/* Maus: xterm-Modus 1000 (Klicks, Rad) mit Koordinaten im SGR-Format (1006) */
+static void mouse_set(int on)
+{
+    const char *s = (on && cfg.mouse) ? "\033[?1000h\033[?1006h" : "\033[?1000l\033[?1006l";
+    if (write(STDOUT_FILENO, s, strlen(s)) < 0) { /* egal */ }
 }
 
 static void on_winch(int sig) { (void)sig; }   /* weckt nur poll() auf */
@@ -133,8 +146,18 @@ static void theme_init(void)
 /* ---------- Tasten ---------- */
 
 typedef enum {
-    K_NONE, K_TICK, K_UP, K_DOWN, K_ENTER, K_BACK, K_QUIT, K_DIGIT, K_HELP, K_EOF
+    K_NONE, K_TICK, K_UP, K_DOWN, K_ENTER, K_BACK, K_QUIT, K_DIGIT, K_HELP, K_CLICK, K_EOF
 } key_t_;
+
+static int mx, my;                         /* Ort des letzten Mausklicks (ab 1) */
+
+static key_t_ mouse_event(int b, int x, int y, int release)
+{
+    if (b & 64) return (b & 1) ? K_DOWN : K_UP;      /* Mausrad */
+    if (release || (b & 32) || (b & 3) != 0) return K_NONE;   /* nur linke Taste */
+    mx = x; my = y;
+    return K_CLICK;
+}
 
 static key_t_ read_key(int *digit)
 {
@@ -156,9 +179,26 @@ static key_t_ read_key(int *digit)
         if (read(STDIN_FILENO, &intro, 1) != 1) return K_NONE;
         if (intro != '[' && intro != 'O') return K_NONE;
         unsigned char fin;
-        do {
+        if (read(STDIN_FILENO, &fin, 1) != 1) return K_NONE;
+        if (intro == '[' && fin == 'M') {    /* Maus, alte Form: 3 Bytes */
+            unsigned char m[3];
+            for (int i = 0; i < 3; i++)
+                if (read(STDIN_FILENO, &m[i], 1) != 1) return K_NONE;
+            int b = m[0] - 32;
+            return mouse_event(b, m[1] - 32, m[2] - 32, (b & 3) == 3);
+        }
+        char pb[32];
+        int pn = 0;
+        while (fin < 0x40) {                 /* Parameterbytes sammeln */
+            if (pn < (int)sizeof pb - 1) pb[pn++] = (char)fin;
             if (read(STDIN_FILENO, &fin, 1) != 1) return K_NONE;
-        } while (fin < 0x40);                /* Parameterbytes überspringen */
+        }
+        pb[pn] = '\0';
+        if (intro == '[' && pb[0] == '<' && (fin == 'M' || fin == 'm')) {
+            int b = 0, x = 0, y = 0;         /* Maus, SGR-Form: b;x;y */
+            if (sscanf(pb + 1, "%d;%d;%d", &b, &x, &y) != 3) return K_NONE;
+            return mouse_event(b, x, y, fin == 'm');
+        }
         if (fin == 'A') return K_UP;
         if (fin == 'B') return K_DOWN;
         return K_NONE;
@@ -247,6 +287,7 @@ static void bar(int row, int col, int w, const char *style, const char *text)
 
 static struct { int x, y, w, h; } g;       /* Lage des Rahmens (ab 1) */
 static char hostinfo[128];
+static struct { int top, spacing, shown, col, w; size_t start; } lay;   /* für Mausklicks */
 
 #define MIN_COLS 60
 #define MIN_ROWS 16
@@ -264,8 +305,8 @@ static void draw_footer(void)
     char ts[64];
     time_t t = time(NULL);
     struct tm tmv;
-    localtime_r(&t, &tmv);
-    strftime(ts, sizeof ts, "%d. %B %Y  %H:%M:%S", &tmv);
+    if (cfg.clock_utc) gmtime_r(&t, &tmv); else localtime_r(&t, &tmv);
+    strftime(ts, sizeof ts, cfg.clock_utc ? "%d. %B %Y  %H:%M:%S UTC" : "%d. %B %Y  %H:%M:%S", &tmv);
 
     int inner = g.w - 4;
     int tl = u8len(ts);
@@ -301,6 +342,7 @@ static const char *item_desc(const menu_item_t *it, char *buf, size_t n)
 static void render(core_t *core)
 {
     menu_view_t v = core_view(core);
+    lay.shown = 0;
     get_size();
     printf("%s\033[2J\033[H\033[?25l", th.reset);
 
@@ -361,6 +403,8 @@ static void render(core_t *core)
     int col = x + 1 + (w - 2 - blockw) / 2;
     if (col < x + 2) col = x + 2;
     int avail = (x + w - 2) - (col + 4) - 2;
+    lay.top = y + 4 + top; lay.spacing = spacing; lay.shown = shown;
+    lay.col = col; lay.w = blockw; lay.start = start;
 
     for (int k = 0; k < shown && start + (size_t)k < v.item_count; k++) {
         size_t i = start + (size_t)k;
@@ -406,6 +450,7 @@ static void run_command(const char *cmd)
     printf("\033[0m\033[2J\033[H\033[?25h");
     fflush(stdout);
 
+    mouse_set(0);
     int rc = system(cmd);
 
     if (rc != 0) {
@@ -418,19 +463,127 @@ static void run_command(const char *cmd)
     fflush(stdout);
     raw_on();
     wait_any_key();
+    tcflush(STDIN_FILENO, TCIFLUSH);
+    mouse_set(1);
 }
 
 static void show_info(const char *text)
 {
+    mouse_set(0);
     printf("\033[0m\033[2J\033[H%s\n\nTaste drücken ...", text);
     fflush(stdout);
     wait_any_key();
+    tcflush(STDIN_FILENO, TCIFLUSH);
+    mouse_set(1);
+}
+
+/* ---------- Passwortfenster ---------- */
+
+static void dline(int row, int left, int w, const char *style, const char *text)
+{
+    int len = u8len(text);
+    int room = w - 4;
+    if (len > room) len = room;
+    at(row, left);
+    fputs(style, stdout);
+    spaces(2);
+    put_cut(text, room);
+    spaces(w - 2 - len);
+    fputs(th.reset, stdout);
+}
+
+static void draw_dialog(const char *label, int stars, const char *msg)
+{
+    get_size();
+    int w = cols < 48 ? cols - 2 : 44, h = 7;
+    int left = (cols - w) / 2 + 1, top = (rows - h) / 2 + 1;
+    if (w < 20 || top < 1) return;
+    char buf[128];
+    int i;
+
+    bar(top, left, w, th.title, "Passwort");
+    dline(top + 1, left, w, th.sel, "");
+    snprintf(buf, sizeof buf, "Eintrag: %s", label);
+    dline(top + 2, left, w, th.sel, buf);
+    snprintf(buf, sizeof buf, "Passwort: ");
+    for (i = 0; i < stars && i < 40; i++) strcat(buf, "*");
+    dline(top + 3, left, w, th.sel, buf);
+    dline(top + 4, left, w, th.sel, "");
+    if (msg) bar(top + 5, left, w, th.title, msg);
+    else     dline(top + 5, left, w, th.sel, "");
+    dline(top + 6, left, w, th.sel, "Enter = OK     Esc = Abbrechen");
+    at(rows, 1);
+    fflush(stdout);
+}
+
+/* 1 = Passwort stimmt, 0 = abgebrochen oder 3 Fehlversuche */
+static int ask_password(const char *label, const char *hash)
+{
+    char pw[128];
+    size_t len = 0;
+    int tries = 0, ok = 0, done = 0;
+    const char *msg = NULL;
+
+    mouse_set(0);
+    tcflush(STDIN_FILENO, TCIFLUSH);
+    pw[0] = '\0';
+    while (!done) {
+        int stars = 0;
+        for (size_t i = 0; i < len; i++) if (((unsigned char)pw[i] & 0xC0) != 0x80) stars++;
+        draw_dialog(label, stars, msg);
+        msg = NULL;
+
+        unsigned char c;
+        ssize_t n = read(STDIN_FILENO, &c, 1);
+        if (n < 0 && errno == EINTR) continue;        /* Fenster verändert: neu zeichnen */
+        if (n <= 0) break;
+        if (c == 27) {
+            struct pollfd p = { STDIN_FILENO, POLLIN, 0 };
+            if (poll(&p, 1, 50) <= 0) break;          /* einzelnes Esc = abbrechen */
+            while (poll(&p, 1, 20) > 0 && read(STDIN_FILENO, &c, 1) == 1) { }
+            continue;                                 /* Pfeiltasten usw. ignorieren */
+        }
+        if (c == 3) break;
+        if (c == '\r' || c == '\n') {
+            if (auth_verify(pw, hash)) { ok = 1; break; }
+            tries++;
+            len = 0; pw[0] = '\0';
+            if (tries >= 3) {
+                draw_dialog(label, 0, "3 Fehlversuche, bitte warten ...");
+                sleep(3);
+                break;
+            }
+            draw_dialog(label, 0, "Falsches Passwort");
+            sleep(1);
+            tcflush(STDIN_FILENO, TCIFLUSH);
+            msg = "Falsches Passwort, nochmal versuchen";
+        } else if (c == 127 || c == 8) {
+            while (len > 0 && ((unsigned char)pw[len - 1] & 0xC0) == 0x80) len--;
+            if (len > 0) len--;
+            pw[len] = '\0';
+        } else if (c >= 32 && len < sizeof pw - 1) {
+            pw[len++] = (char)c;
+            pw[len] = '\0';
+        }
+    }
+    memset(pw, 0, sizeof pw);
+    tcflush(STDIN_FILENO, TCIFLUSH);
+    mouse_set(1);
+    return ok;
+}
+
+static const char *find_hash(const char *name)
+{
+    for (size_t i = 0; i < cfg.password_count; i++)
+        if (strcmp(cfg.passwords[i].name, name) == 0) return cfg.passwords[i].hash;
+    return NULL;
 }
 
 static const char *HELP_TEXT =
     "Tasten\n\n"
     "  Pfeil hoch / runter   Eintrag wählen\n"
     "  Enter                 Eintrag ausführen\n"
+    "  Maus                  Klick = ausführen, Rad = wählen\n"
     "  1 bis 9               Eintrag direkt ausführen\n"
     "  Esc oder Backspace    ein Menü zurück\n"
 #ifndef KIOSK
@@ -444,32 +597,75 @@ static void usage(const char *prog)
 {
     fprintf(stderr,
         "automenu %s\n"
-        "Aufruf:  %s [datei]            Menü starten\n"
+        "Aufruf:  %s [datei.mdf]        Menü starten\n"
         "         %s --check [datei]    Menüdatei nur prüfen\n"
+        "         %s --hash [name]      Passwort-Zeile für die Menüdatei erzeugen\n"
         "         %s --version\n"
-        "Ohne Datei wird gesucht in:\n"
-        "  $XDG_CONFIG_HOME/automenu/menu.txt\n"
-        "  ~/.config/automenu/menu.txt\n"
-        "  %s/automenu/menu.txt\n",
-        AUTOMENU_VERSION, prog, prog, prog, SYSCONFDIR);
+        "Ohne Datei wird menu.mdf (sonst menu.txt) gesucht in:\n"
+        "  $XDG_CONFIG_HOME/automenu/\n"
+        "  ~/.config/automenu/\n"
+        "  %s/automenu/\n",
+        AUTOMENU_VERSION, prog, prog, prog, prog, SYSCONFDIR);
 }
 
-/* Standard-Menüdatei suchen. Rückgabe: 1 = gefunden. */
+/* Standard-Menüdatei suchen (menu.mdf, sonst menu.txt). Rückgabe: 1 = gefunden. */
 static int find_default_menu(char *buf, size_t n)
 {
+    static const char *names[] = { "menu.mdf", "menu.txt" };
     const char *xdg = getenv("XDG_CONFIG_HOME");
     const char *home = getenv("HOME");
+    char dir[900];
 
-    if (xdg && *xdg) {
-        snprintf(buf, n, "%s/automenu/menu.txt", xdg);
-        if (access(buf, R_OK) == 0) return 1;
+    for (int d = 0; d < 3; d++) {
+        dir[0] = '\0';
+        if (d == 0 && xdg && *xdg) snprintf(dir, sizeof dir, "%s/automenu", xdg);
+        if (d == 1 && home && *home) snprintf(dir, sizeof dir, "%s/.config/automenu", home);
+        if (d == 2) snprintf(dir, sizeof dir, "%s/automenu", SYSCONFDIR);
+        if (!dir[0]) continue;
+        for (int i = 0; i < 2; i++) {
+            snprintf(buf, n, "%s/%s", dir, names[i]);
+            if (access(buf, R_OK) == 0) return 1;
+        }
     }
-    if (home && *home) {
-        snprintf(buf, n, "%s/.config/automenu/menu.txt", home);
-        if (access(buf, R_OK) == 0) return 1;
+    return 0;
+}
+
+/* Eingabe ohne Echo (wenn stdin ein Terminal ist) */
+static int read_secret(const char *prompt, char *out, size_t n)
+{
+    struct termios t, o;
+    int tty = tcgetattr(STDIN_FILENO, &o) == 0;
+    fputs(prompt, stderr);
+    fflush(stderr);
+    if (tty) { t = o; t.c_lflag &= ~(tcflag_t)ECHO; tcsetattr(STDIN_FILENO, TCSAFLUSH, &t); }
+    char *r = fgets(out, (int)n, stdin);
+    if (tty) { tcsetattr(STDIN_FILENO, TCSAFLUSH, &o); fputs("\n", stderr); }
+    if (!r) return 0;
+    out[strcspn(out, "\r\n")] = '\0';
+    return 1;
+}
+
+/* automenu --hash [name]: fragt zweimal und druckt die password-Zeile */
+static int make_password_line(const char *name)
+{
+    char a[128], b[128], hash[AUTH_HASH_MAX];
+    uint8_t salt[16];
+
+    if (!read_secret("Passwort: ", a, sizeof a) ||
+        !read_secret("Wiederholen: ", b, sizeof b)) return 1;
+    if (strcmp(a, b) != 0) { fprintf(stderr, "Die Eingaben sind verschieden.\n"); return 1; }
+    if (!a[0]) { fprintf(stderr, "Leeres Passwort nicht erlaubt.\n"); return 1; }
+    FILE *f = fopen("/dev/urandom", "rb");
+    if (!f || fread(salt, 1, sizeof salt, f) != sizeof salt) {
+        fprintf(stderr, "Kein Zufall verfügbar (/dev/urandom).\n");
+        if (f) fclose(f);
+        return 1;
     }
-    snprintf(buf, n, "%s/automenu/menu.txt", SYSCONFDIR);
-    return access(buf, R_OK) == 0;
+    fclose(f);
+    if (!auth_make_hash(a, salt, AUTH_ITER_DEFAULT, hash, sizeof hash)) return 1;
+    printf("password %s %s\n", name, hash);
+    memset(a, 0, sizeof a); memset(b, 0, sizeof b);
+    return 0;
 }
 
 int main(int argc, char **argv)
@@ -485,6 +681,11 @@ int main(int argc, char **argv)
         printf("automenu %s\n", AUTOMENU_VERSION);
         return 0;
     }
+    if (i < argc && strcmp(argv[i], "--hash") == 0) {
+        const char *nm = (i + 1 < argc) ? argv[i + 1] : "admin";
+        if (i + 2 < argc || strchr(nm, ' ') || nm[0] == '-') { usage(argv[0]); return 2; }
+        return make_password_line(nm);
+    }
     if (i < argc && strcmp(argv[i], "--check") == 0) { check_only = 1; i++; }
     if (i < argc) path = argv[i++];
     if (i < argc || (path && path[0] == '-')) { usage(argv[0]); return 2; }
@@ -498,26 +699,24 @@ int main(int argc, char **argv)
         path = found;
     }
 
-    menu_t *menus = NULL;
-    size_t count = 0;
-    if (!menu_load_file(path, &menus, &count)) return 1;
+    if (!mdf_load_file(path, &cfg)) return 1;
 
     if (check_only) {
-        printf("%s: ok (%zu Menüs)\n", path, count);
-        menu_free(menus, count);
+        printf("%s: ok (%zu Menüs, %zu Passwörter)\n", path, cfg.menu_count, cfg.password_count);
+        mdf_free(&cfg);
         return 0;
     }
 
     core_t *core = core_create();
-    if (!core || !core_load(core, menus, count)) {
+    if (!core || !core_load(core, cfg.menus, cfg.menu_count)) {
         fprintf(stderr, "Startmenü ist leer oder ungültig\n");
-        menu_free(menus, count);
+        mdf_free(&cfg);
         return 1;
     }
 
     if (tcgetattr(STDIN_FILENO, &orig_tio) != 0) {
         fprintf(stderr, "automenu braucht ein Terminal (stdin ist keines)\n");
-        menu_free(menus, count);
+        mdf_free(&cfg);
         core_destroy(core);
         return 1;
     }
@@ -546,8 +745,10 @@ int main(int argc, char **argv)
         sigaction(SIGWINCH, &sa, NULL);
     }
     raw_on();
+    mouse_set(1);
 
-    int need_render = 1;
+    int need_render = 1, blacked = 0;
+    time_t last_act = time(NULL);
     for (;;) {
         if (need_render) { render(core); need_render = 0; }
 
@@ -556,10 +757,23 @@ int main(int argc, char **argv)
         if (k == K_EOF || k == K_QUIT) break;
 
         if (k == K_TICK) {                   /* Uhr nachführen, Fenstergrösse prüfen */
+            if (blacked) continue;
+            if (cfg.blackout_s > 0 && time(NULL) - last_act >= cfg.blackout_s) {
+                blacked = 1;                 /* Blackout: schwarzer Schirm bis zur nächsten Eingabe */
+                printf("\033[0m\033[40m\033[2J\033[H\033[?25l");
+                fflush(stdout);
+                continue;
+            }
             int oc = cols, orows = rows;
             get_size();
             if (oc != cols || orows != rows) need_render = 1;
             else if (cols >= MIN_COLS && rows >= MIN_ROWS) draw_footer();
+            continue;
+        }
+        last_act = time(NULL);
+        if (blacked) {                       /* erste Eingabe weckt nur auf */
+            blacked = 0;
+            need_render = 1;
             continue;
         }
         need_render = 1;
@@ -571,19 +785,37 @@ int main(int argc, char **argv)
         case K_BACK:  core_input(core, CORE_EVENT_BACK); break;
         case K_DIGIT: core_select_index(core, (size_t)digit); break;
         case K_HELP:  show_info(HELP_TEXT); break;
+        case K_CLICK:
+            for (int j = 0; j < lay.shown; j++) {
+                if (my == lay.top + j * lay.spacing && mx >= lay.col && mx < lay.col + lay.w) {
+                    core_select_index(core, lay.start + (size_t)j);
+                    break;
+                }
+            }
+            break;
         default: break;
+        }
+
+        const char *lname = core_locked_name(core);
+        if (lname) {                         /* gesperrter Eintrag: erst Passwort */
+            const char *hash = find_hash(lname);
+            render(core);
+            if (hash && ask_password(core_locked_label(core), hash)) core_unlock_ok(core);
+            else core_unlock_cancel(core);
+            last_act = time(NULL);
         }
 
         const char *cmd = core_poll_run(core);
         if (cmd) run_command(cmd);
         const char *info = core_poll_info(core);
         if (info) show_info(info);
+        last_act = time(NULL);
         if (core_should_exit(core)) break;
     }
 
     printf("\033[0m\033[2J\033[H");
     restore_terminal();
     core_destroy(core);
-    menu_free(menus, count);
+    mdf_free(&cfg);
     return 0;
 }

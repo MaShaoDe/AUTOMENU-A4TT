@@ -1,4 +1,4 @@
-.Dd November 11, 2026
+.Dd November 12, 2026
 .Dt AUTOMENU 1
 .Os
 .Sh NAME
@@ -7,6 +7,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Ar datei
+.Nm
+.Fl \-hash
+.Op Ar name
 .Nm
 .Fl \-check
 .Op Ar datei
@@ -18,6 +21,7 @@ zeigt ein Menü, das aus einer Textdatei gelesen wird.
 Ein Tastendruck öffnet ein Untermenü, zeigt einen Text oder führt einen Befehl aus.
 .Pp
 Bedienung: Pfeiltasten und Enter, die Ziffern 1 bis 9 wählen einen Eintrag direkt,
+ein Mausklick führt einen Eintrag aus, das Mausrad wählt,
 Esc oder Backspace gehen ein Menü zurück, Ctrl-C beendet das Programm.
 .Pp
 Ohne
@@ -30,14 +34,26 @@ Mit
 .Fl \-check
 wird die Datei nur geprüft.
 Fehler werden mit Zeilennummer gemeldet.
+.Pp
+Mit
+.Fl \-hash
+.Op Ar name
+wird zweimal ein Passwort abgefragt (ohne Echo) und die passende
+.Cm password
+Zeile für die Menüdatei ausgegeben.
 .Sh FILES
 Reihenfolge der Suche:
 .Bl -tag -width Ds
-.It Pa $XDG_CONFIG_HOME/automenu/menu.txt
-.It Pa ~/.config/automenu/menu.txt
-.It Pa PREFIX/etc/automenu/menu.txt
+.It Pa $XDG_CONFIG_HOME/automenu/menu.mdf
+.It Pa ~/.config/automenu/menu.mdf
+.It Pa PREFIX/etc/automenu/menu.mdf
 Systemweite Vorgabe.
-.It Pa PREFIX/etc/automenu/menu.txt.sample
+In jedem Ordner wird zuerst
+.Pa menu.mdf ,
+danach
+.Pa menu.txt
+gesucht.
+.It Pa PREFIX/etc/automenu/menu.mdf.sample
 Beispiel, wird bei der Installation angelegt.
 .It Pa PREFIX/share/examples/automenu/
 Weitere Beispiele.
@@ -63,6 +79,21 @@ Zeigt einen Text an.
 Geht zurück.
 .It Cm item Qq Text Cm exit
 Beendet das Programm.
+.It Cm item Qq Text Op Qq Hilfetext Cm lock Ar name ...
+Sperrt den Eintrag: vor der Ausführung wird das Passwort
+.Ar name
+abgefragt, jedes Mal neu.
+Nach 3 Fehlversuchen geht es zurück ins Menü.
+.It Cm password Ar name Ar hash
+Definiert ein Passwort (Hash mit
+.Fl \-hash
+erzeugen).
+.It Cm set blackout Ar sekunden
+Schirm nach dieser Zeit ohne Eingabe schwarz schalten, 0 = aus.
+.It Cm set clock Ar utc|local
+Uhr in UTC oder Ortszeit.
+.It Cm set mouse Ar on|off
+Maus ein oder aus, Vorgabe on.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width Ds

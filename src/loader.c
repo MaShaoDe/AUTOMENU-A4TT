@@ -3,10 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include "loader.h"
+#include "auth.h"
 
 typedef struct {
     menu_t *menus;
     size_t count;
+    password_t *pw;
+    size_t pw_count;
+    int blackout_s, clock_utc, mouse;
 } cfg_t;
 
 static char *dupstr(const char *s)
@@ -59,8 +63,13 @@ static void unescape_newlines(char *s)
     *w = '\0';
 }
 
-void menu_free(menu_t *menus, size_t count)
+static void free_cfg(menu_t *menus, size_t count, password_t *pw, size_t pw_count)
 {
+    for (size_t i = 0; i < pw_count; i++) {
+        free((char *)pw[i].name);
+        free((char *)pw[i].hash);
+    }
+    free(pw);
     if (!menus) return;
     for (size_t i = 0; i < count; i++) {
         free((char *)menus[i].id);
@@ -69,10 +78,18 @@ void menu_free(menu_t *menus, size_t count)
             free((char *)menus[i].items[j].label);
             free((char *)menus[i].items[j].arg);
             free((char *)menus[i].items[j].desc);
+            free((char *)menus[i].items[j].lock);
         }
         free(menus[i].items);
     }
     free(menus);
+}
+
+void mdf_free(mdf_t *m)
+{
+    if (!m) return;
+    free_cfg(m->menus, m->menu_count, m->passwords, m->password_count);
+    memset(m, 0, sizeof(*m));
 }
 
 static int fail(const char *name, size_t line, const char *msg, const char *detail)
@@ -116,9 +133,18 @@ static int parse_item_line(cfg_t *cfg, char *p, const char *name, size_t ln)
         desc = take_quoted(&p);
         if (!desc) return fail(name, ln, "Hilfetext ohne schliessendes Anführungszeichen", NULL);
     }
+    char *lock = NULL;
+    if (label) {                            /* optional: lock <passwortname> */
+        char *q = skip_ws(p);
+        if (strncmp(q, "lock", 4) == 0 && (q[4] == ' ' || q[4] == '\t')) {
+            p = q + 4;
+            lock = take_word(&p);
+            if (!lock) return fail(name, ln, "lock braucht einen Passwortnamen", NULL);
+        }
+    }
     char *type = take_word(&p);
     if (!label || !type)
-        return fail(name, ln, "Syntax: item \"Text\" [\"Hilfetext\"] <run|menu|info|back|exit> ...", NULL);
+        return fail(name, ln, "Syntax: item \"Text\" [\"Hilfetext\"] [lock <name>] <run|menu|info|back|exit> ...", NULL);
 
     char *rest = skip_ws(p);
     menu_item_t it = {0};
@@ -148,8 +174,54 @@ static int parse_item_line(cfg_t *cfg, char *p, const char *name, size_t ln)
     it.label = dupstr(label);
     it.arg = arg ? dupstr(arg) : NULL;
     it.desc = desc ? dupstr(desc) : NULL;
-    if (!it.label || (arg && !it.arg) || (desc && !it.desc)) return fail(name, ln, "zu wenig Speicher", NULL);
+    it.lock = lock ? dupstr(lock) : NULL;
+    if (!it.label || (arg && !it.arg) || (desc && !it.desc) || (lock && !it.lock)) return fail(name, ln, "zu wenig Speicher", NULL);
     m->items[m->item_count++] = it;
+    return 1;
+}
+
+static int parse_password_line(cfg_t *cfg, char *p, const char *name, size_t ln)
+{
+    char *pn = take_word(&p);
+    char *hash = take_word(&p);
+    if (!pn || !hash || *skip_ws(p))
+        return fail(name, ln, "Syntax: password <name> <hash>  (Hash erzeugen: automenu --hash)", NULL);
+    if (!auth_format_ok(hash))
+        return fail(name, ln, "Passwort-Hash ungültig, bitte mit automenu --hash erzeugen", NULL);
+    for (size_t i = 0; i < cfg->pw_count; i++)
+        if (strcmp(cfg->pw[i].name, pn) == 0)
+            return fail(name, ln, "Passwortname doppelt:", pn);
+    password_t *np = realloc(cfg->pw, sizeof(password_t) * (cfg->pw_count + 1));
+    if (!np) return fail(name, ln, "zu wenig Speicher", NULL);
+    cfg->pw = np;
+    cfg->pw[cfg->pw_count].name = dupstr(pn);
+    cfg->pw[cfg->pw_count].hash = dupstr(hash);
+    cfg->pw_count++;
+    return 1;
+}
+
+static int parse_set_line(cfg_t *cfg, char *p, const char *name, size_t ln)
+{
+    char *key = take_word(&p);
+    char *val = take_word(&p);
+    if (!key || !val || *skip_ws(p))
+        return fail(name, ln, "Syntax: set <blackout|clock|mouse> <wert>", NULL);
+    if (strcmp(key, "blackout") == 0) {
+        char *e; long v = strtol(val, &e, 10);
+        if (*e || v < 0 || v > 86400)
+            return fail(name, ln, "blackout: Sekunden 0 bis 86400 (0 = aus)", NULL);
+        cfg->blackout_s = (int)v;
+    } else if (strcmp(key, "clock") == 0) {
+        if (strcmp(val, "utc") == 0) cfg->clock_utc = 1;
+        else if (strcmp(val, "local") == 0) cfg->clock_utc = 0;
+        else return fail(name, ln, "clock: utc oder local", NULL);
+    } else if (strcmp(key, "mouse") == 0) {
+        if (strcmp(val, "on") == 0) cfg->mouse = 1;
+        else if (strcmp(val, "off") == 0) cfg->mouse = 0;
+        else return fail(name, ln, "mouse: on oder off", NULL);
+    } else {
+        return fail(name, ln, "unbekannte Einstellung:", key);
+    }
     return 1;
 }
 
@@ -169,6 +241,17 @@ static int validate(const cfg_t *cfg, const char *name)
     for (size_t i = 0; i < cfg->count; i++) {
         const menu_t *a = &cfg->menus[i];
         for (size_t k = 0; k < a->item_count; k++) {
+            const char *lk = a->items[k].lock;
+            if (lk) {
+                int ok = 0;
+                for (size_t j = 0; j < cfg->pw_count; j++)
+                    if (strcmp(lk, cfg->pw[j].name) == 0) ok = 1;
+                if (!ok) {
+                    fprintf(stderr, "%s: Eintrag \"%s\" nutzt unbekanntes Passwort '%s'\n",
+                            name, a->items[k].label, lk);
+                    return 0;
+                }
+            }
             if (a->items[k].type != MENU_ITEM_MENU) continue;
             int found = 0;
             for (size_t j = 0; j < cfg->count; j++)
@@ -183,10 +266,10 @@ static int validate(const cfg_t *cfg, const char *name)
     return 1;
 }
 
-int menu_parse_text(const char *text, const char *name,
-                    menu_t **out_menus, size_t *out_count)
+int mdf_parse_text(const char *text, const char *name, mdf_t *out)
 {
     cfg_t cfg = {0};
+    cfg.mouse = 1;
     char *buf = dupstr(text);
     if (!buf) return fail(name, 0, "zu wenig Speicher", NULL);
 
@@ -207,6 +290,8 @@ int menu_parse_text(const char *text, const char *name,
             char *kw = take_word(&p);
             if (strcmp(kw, "menu") == 0)      ok = parse_menu_line(&cfg, p, name, ln);
             else if (strcmp(kw, "item") == 0) ok = parse_item_line(&cfg, p, name, ln);
+            else if (strcmp(kw, "password") == 0) ok = parse_password_line(&cfg, p, name, ln);
+            else if (strcmp(kw, "set") == 0)  ok = parse_set_line(&cfg, p, name, ln);
             else ok = fail(name, ln, "unbekanntes Schlüsselwort:", kw);
         }
         line = nl ? nl + 1 : NULL;
@@ -214,13 +299,18 @@ int menu_parse_text(const char *text, const char *name,
     free(buf);
 
     if (ok) ok = validate(&cfg, name);
-    if (!ok) { menu_free(cfg.menus, cfg.count); return 0; }
-    *out_menus = cfg.menus;
-    *out_count = cfg.count;
+    if (!ok) { free_cfg(cfg.menus, cfg.count, cfg.pw, cfg.pw_count); return 0; }
+    out->menus = cfg.menus;
+    out->menu_count = cfg.count;
+    out->passwords = cfg.pw;
+    out->password_count = cfg.pw_count;
+    out->blackout_s = cfg.blackout_s;
+    out->clock_utc = cfg.clock_utc;
+    out->mouse = cfg.mouse;
     return 1;
 }
 
-int menu_load_file(const char *path, menu_t **out_menus, size_t *out_count)
+int mdf_load_file(const char *path, mdf_t *out)
 {
     FILE *f = fopen(path, "rb");
     if (!f) { perror(path); return 0; }
@@ -240,7 +330,7 @@ int menu_load_file(const char *path, menu_t **out_menus, size_t *out_count)
     fclose(f);
     text[len] = '\0';
 
-    int ok = menu_parse_text(text, path, out_menus, out_count);
+    int ok = mdf_parse_text(text, path, out);
     free(text);
     return ok;
 }

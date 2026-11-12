@@ -1,0 +1,24 @@
+# Beispielmenü. Starten mit:  ./automenu examples/menu.mdf
+# Das erste Menü in der Datei ist immer das Startmenü.
+
+# Einstellungen (alle optional, ohne Zeile gilt der Standard)
+# set blackout 300      nach 300 Sekunden ohne Eingabe wird der Schirm schwarz
+# set clock utc         Uhr in UTC statt Ortszeit
+# set mouse off         Maus abschalten
+#
+# Passwortschutz: Zeile erzeugen mit  automenu --hash admin  und hier einfügen:
+# password admin pbkdf2-sha256:...
+# Dann beim Eintrag:  item "Neustart" lock admin run sudo reboot
+
+menu start "Automenu"
+  item "Datum und Uhrzeit"     run date
+  item "Wer bin ich"           run whoami; hostname
+  item "Dateien im Ordner"     run ls -l
+  item "Werkzeuge"             menu tools
+  item "Über dieses Menü"      info Automenu\nEin Menü wie damals.
+  item "Beenden"               exit
+
+menu tools "Werkzeuge"
+  item "Speicherplatz"         run df -h
+  item "Laufende Programme"    run ps aux | head -20
+  item "Zurück"                back

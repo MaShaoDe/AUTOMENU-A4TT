@@ -11,15 +11,15 @@
 #   sudo make install                    nach /usr/local
 #   make install PREFIX=$HOME/.local     ohne Admin-Rechte
 
-VERSION    = 0.3.5
+VERSION    = 0.9.0
 PREFIX    ?= /usr/local
 SYSCONFDIR?= $(PREFIX)/etc
 DESTDIR   ?=
 CC        ?= cc
 CFLAGS    ?= -O2
 WARN       = -Wall -Wextra
-SRCS       = src/core.c src/loader.c src/terminal.c
-HDRS       = src/core.h src/loader.h src/menu.h src/version.h
+SRCS       = src/core.c src/loader.c src/auth.c src/terminal.c
+HDRS       = src/core.h src/loader.h src/auth.h src/menu.h src/version.h
 DEFS       = -DSYSCONFDIR=\"$(SYSCONFDIR)\"
 
 all: automenu
@@ -30,8 +30,8 @@ automenu: $(SRCS) $(HDRS)
 kiosk: $(SRCS) $(HDRS)
 	$(CC) $(CFLAGS) $(WARN) -Isrc $(DEFS) -DKIOSK -o automenu $(SRCS)
 
-test: tests/test_all.c src/core.c src/loader.c $(HDRS)
-	$(CC) $(CFLAGS) $(WARN) -Isrc -o test_all tests/test_all.c src/core.c src/loader.c
+test: tests/test_all.c src/core.c src/loader.c src/auth.c $(HDRS)
+	$(CC) $(CFLAGS) $(WARN) -Isrc -o test_all tests/test_all.c src/core.c src/loader.c src/auth.c
 	./test_all
 	rm -f test_all
 
@@ -42,13 +42,13 @@ install: automenu
 	install -d $(DESTDIR)$(PREFIX)/share/examples/automenu
 	install -m 755 automenu $(DESTDIR)$(PREFIX)/bin/automenu
 	install -m 644 man/automenu.1 $(DESTDIR)$(PREFIX)/share/man/man1/automenu.1
-	install -m 644 examples/menu.txt $(DESTDIR)$(SYSCONFDIR)/automenu/menu.txt.sample
-	install -m 644 examples/menu.txt examples/ham.txt examples/things.txt $(DESTDIR)$(PREFIX)/share/examples/automenu/
+	install -m 644 examples/menu.mdf $(DESTDIR)$(SYSCONFDIR)/automenu/menu.mdf.sample
+	install -m 644 examples/menu.mdf examples/ham.mdf examples/things.mdf $(DESTDIR)$(PREFIX)/share/examples/automenu/
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/automenu
 	rm -f $(DESTDIR)$(PREFIX)/share/man/man1/automenu.1
-	rm -f $(DESTDIR)$(SYSCONFDIR)/automenu/menu.txt.sample
+	rm -f $(DESTDIR)$(SYSCONFDIR)/automenu/menu.mdf.sample
 	rm -rf $(DESTDIR)$(PREFIX)/share/examples/automenu
 
 clean:

@@ -3,6 +3,7 @@
 #include <string.h>
 #include "core.h"
 #include "loader.h"
+#include "auth.h"
 
 static int failures = 0;
 #define CHECK(c) do { if (!(c)) { printf("FEHLER Zeile %d: %s\n", __LINE__, #c); failures++; } } while (0)
@@ -20,9 +21,11 @@ static const char *GOOD =
 
 static void test_loader(void)
 {
-    menu_t *m = NULL; size_t n = 0;
-    CHECK(menu_parse_text(GOOD, "t", &m, &n));
+    mdf_t d = {0};
+    CHECK(mdf_parse_text(GOOD, "t", &d));
+    menu_t *m = d.menus; size_t n = d.menu_count;
     CHECK(n == 2);
+    CHECK(d.mouse == 1 && d.blackout_s == 0 && d.clock_utc == 0);
     CHECK(m[0].item_count == 4);
     CHECK(m[0].items[0].type == MENU_ITEM_RUN);
     CHECK(strcmp(m[0].items[0].arg, "date -u") == 0);   /* CRLF wurde entfernt */
@@ -30,7 +33,7 @@ static void test_loader(void)
     CHECK(m[0].items[1].desc == NULL);
     CHECK(strcmp(m[0].items[2].arg, "Zeile1\nZeile2") == 0);
     CHECK(m[1].items[0].type == MENU_ITEM_BACK);
-    menu_free(m, n);
+    mdf_free(&d);
 
     const char *bad[] = {
         "",                                               /* leer */
@@ -44,18 +47,26 @@ static void test_loader(void)
         "menu a A\n",                                     /* Titel ohne Anführungszeichen */
         "menu a \"A\"\n item \"x\" \"offen exit\n",           /* Hilfetext nicht geschlossen */
         "hallo\n",                                        /* unbekanntes Wort */
+        "menu a \"A\"\n item \"x\" lock pw exit\n",       /* unbekanntes Passwort */
+        "password p xyz\nmenu a \"A\"\n item \"x\" exit\n", /* Hash ungültig */
+        "set blackout -5\nmenu a \"A\"\n item \"x\" exit\n",
+        "set clock mars\nmenu a \"A\"\n item \"x\" exit\n",
+        "set mouse vielleicht\nmenu a \"A\"\n item \"x\" exit\n",
+        "set farbe rot\nmenu a \"A\"\n item \"x\" exit\n",
+        "menu a \"A\"\n item \"x\" lock\n",              /* lock ohne Namen */
     };
     for (size_t i = 0; i < sizeof bad / sizeof *bad; i++) {
-        m = NULL; n = 0;
+        mdf_t e = {0};
         printf("  (erwartete Meldung) ");
-        CHECK(!menu_parse_text(bad[i], "bad", &m, &n));
+        CHECK(!mdf_parse_text(bad[i], "bad", &e));
     }
 }
 
 static void test_core(void)
 {
-    menu_t *m = NULL; size_t n = 0;
-    CHECK(menu_parse_text(GOOD, "t", &m, &n));
+    mdf_t d = {0};
+    CHECK(mdf_parse_text(GOOD, "t", &d));
+    menu_t *m = d.menus; size_t n = d.menu_count;
     core_t *c = core_create();
     CHECK(core_load(c, m, n));
     CHECK(strcmp(core_view(c).id, "main") == 0);
@@ -95,11 +106,64 @@ static void test_core(void)
     CHECK(core_should_exit(c));
 
     core_destroy(c);
-    menu_free(m, n);
+    mdf_free(&d);
+}
+
+static void test_auth(void)
+{
+    uint8_t o[32], salt[16];
+    char hex[65], h[AUTH_HASH_MAX];
+    auth_sha256((const uint8_t *)"abc", 3, o);
+    for (int i = 0; i < 32; i++) sprintf(hex + 2*i, "%02x", o[i]);
+    CHECK(strcmp(hex, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad") == 0);
+    auth_hmac_sha256((const uint8_t *)"Jefe", 4, (const uint8_t *)"what do ya want for nothing?", 28, o);
+    for (int i = 0; i < 32; i++) sprintf(hex + 2*i, "%02x", o[i]);
+    CHECK(strcmp(hex, "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843") == 0);
+    for (int i = 0; i < 16; i++) salt[i] = (uint8_t)(i * 7 + 1);
+    CHECK(auth_make_hash("geheim", salt, 1000, h, sizeof h));
+    CHECK(auth_format_ok(h));
+    CHECK(auth_verify("geheim", h));
+    CHECK(!auth_verify("Geheim", h));
+    CHECK(!auth_verify("", h));
+    CHECK(!auth_verify("geheim", "kaputt"));
+}
+
+static void test_lock(void)
+{
+    uint8_t salt[16] = {0};
+    char h[AUTH_HASH_MAX], txt[600];
+    auth_make_hash("pw1", salt, 100, h, sizeof h);
+    snprintf(txt, sizeof txt,
+             "password admin %s\nset blackout 30\nset clock utc\nset mouse off\n"
+             "menu main \"M\"\n item \"Offen\" run echo a\n"
+             " item \"Zu\" \"Hilfe\" lock admin run echo b\n item \"Ende\" exit\n", h);
+    mdf_t d = {0};
+    CHECK(mdf_parse_text(txt, "lock", &d));
+    CHECK(d.password_count == 1 && d.blackout_s == 30 && d.clock_utc == 1 && d.mouse == 0);
+    CHECK(d.menus[0].items[1].lock && strcmp(d.menus[0].items[1].lock, "admin") == 0);
+    CHECK(strcmp(d.menus[0].items[1].desc, "Hilfe") == 0);
+    CHECK(strcmp(d.menus[0].items[1].arg, "echo b") == 0);
+    core_t *c = core_create();
+    CHECK(core_load(c, d.menus, d.menu_count));
+    core_select_index(c, 1);
+    CHECK(core_poll_run(c) == NULL);                     /* nicht ausgeführt */
+    CHECK(core_locked_name(c) && strcmp(core_locked_name(c), "admin") == 0);
+    core_unlock_cancel(c);
+    CHECK(core_locked_name(c) == NULL && core_poll_run(c) == NULL);
+    core_select_index(c, 1);
+    core_unlock_ok(c);
+    const char *cmd = core_poll_run(c);
+    CHECK(cmd && strcmp(cmd, "echo b") == 0);
+    core_select_index(c, 1);                             /* wieder gesperrt */
+    CHECK(core_locked_name(c) != NULL);
+    core_destroy(c);
+    mdf_free(&d);
 }
 
 int main(void)
 {
+    test_auth();
+    test_lock();
     test_loader();
     test_core();
     if (failures) { printf("%d Fehler\n", failures); return 1; }

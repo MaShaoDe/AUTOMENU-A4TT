@@ -40,4 +40,12 @@ const char *core_poll_run(core_t *core);
 const char *core_poll_info(core_t *core);
 int core_should_exit(const core_t *core);
 
+/* Passwortschutz: Eine Auswahl auf einem gesperrten Eintrag führt nichts aus,
+   sondern setzt eine Abfrage. Der Adapter prüft das Passwort und ruft dann
+   core_unlock_ok() (Eintrag wird ausgeführt) oder core_unlock_cancel(). */
+const char *core_locked_name(const core_t *core);   /* NULL = keine Abfrage */
+const char *core_locked_label(const core_t *core);
+void core_unlock_ok(core_t *core);
+void core_unlock_cancel(core_t *core);
+
 #endif

@@ -14,6 +14,7 @@ struct core {
     size_t depth;
     const char *pending_run;
     const char *pending_info;
+    const menu_item_t *pending_lock;
     int exit_requested;
 };
 
@@ -46,6 +47,33 @@ static void go_back(core_t *c)
     }
 }
 
+static void activate(core_t *c, const menu_item_t *it)
+{
+    switch (it->type) {
+    case MENU_ITEM_RUN:
+        c->pending_run = it->arg;
+        break;
+    case MENU_ITEM_MENU: {
+        size_t next = find_menu(c, it->arg);
+        if (next != (size_t)-1 && c->depth < STACK_MAX) {
+            c->stack[c->depth++] = c->current_menu;
+            c->current_menu = next;
+            c->current_index = 0;
+        }
+        break;
+    }
+    case MENU_ITEM_BACK:
+        go_back(c);
+        break;
+    case MENU_ITEM_EXIT:
+        c->exit_requested = 1;
+        break;
+    case MENU_ITEM_INFO:
+        c->pending_info = (it->arg && *it->arg) ? it->arg : it->label;
+        break;
+    }
+}
+
 void core_input(core_t *c, core_event_t ev)
 {
     if (!c || !c->menus) return;
@@ -63,29 +91,10 @@ void core_input(core_t *c, core_event_t ev)
         break;
     case CORE_EVENT_SELECT: {
         const menu_item_t *it = &m->items[c->current_index];
-        switch (it->type) {
-        case MENU_ITEM_RUN:
-            c->pending_run = it->arg;
-            break;
-        case MENU_ITEM_MENU: {
-            size_t next = find_menu(c, it->arg);
-            if (next != (size_t)-1 && c->depth < STACK_MAX) {
-                c->stack[c->depth++] = c->current_menu;
-                c->current_menu = next;
-                c->current_index = 0;
-            }
-            break;
-        }
-        case MENU_ITEM_BACK:
-            go_back(c);
-            break;
-        case MENU_ITEM_EXIT:
-            c->exit_requested = 1;
-            break;
-        case MENU_ITEM_INFO:
-            c->pending_info = (it->arg && *it->arg) ? it->arg : it->label;
-            break;
-        }
+        if (it->lock && *it->lock)
+            c->pending_lock = it;      /* erst Passwort abfragen */
+        else
+            activate(c, it);
         break;
     }
     }
@@ -131,3 +140,27 @@ const char *core_poll_info(core_t *c)
 }
 
 int core_should_exit(const core_t *c) { return c ? c->exit_requested : 0; }
+
+/* Sperre: liefert den Passwortnamen, solange eine Abfrage aussteht */
+const char *core_locked_name(const core_t *c)
+{
+    return (c && c->pending_lock) ? c->pending_lock->lock : NULL;
+}
+
+const char *core_locked_label(const core_t *c)
+{
+    return (c && c->pending_lock) ? c->pending_lock->label : NULL;
+}
+
+void core_unlock_ok(core_t *c)
+{
+    if (!c || !c->pending_lock) return;
+    const menu_item_t *it = c->pending_lock;
+    c->pending_lock = NULL;
+    activate(c, it);
+}
+
+void core_unlock_cancel(core_t *c)
+{
+    if (c) c->pending_lock = NULL;
+}

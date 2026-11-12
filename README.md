@@ -15,11 +15,11 @@ Ziele in dieser Reihenfolge: MacBook (Terminal), Linux-Distributionen, FreeBSD, 
 ## Starten
 
     make
-    ./automenu examples/menu.txt
+    ./automenu examples/menu.mdf
 
 Bedienung: Pfeiltasten und Enter, Ziffern 1 bis 9 direkt, Esc geht zurück, H zeigt die Hilfe.
 
-Probiere auch `./automenu examples/things.txt`.
+Probiere auch `./automenu examples/things.mdf`.
 
 ## So sieht es aus
 
@@ -40,7 +40,7 @@ Terminal von macOS, Schrift Menlo, `AUTOMENU_FRAME=lines`.
 | FreeBSD | Port oder Package, siehe `packaging/freebsd/README.txt` |
 | macOS Schritt für Schritt | COOKBOOK.md, Abschnitt 2 |
 
-Danach: Menü nach `~/.config/automenu/menu.txt` legen, dann startet `automenu` ohne Argument.
+Danach: Menü nach `~/.config/automenu/menu.mdf` legen, dann startet `automenu` ohne Argument.
 Alle Pfade stehen im Cookbook unter "Wo liegt was".
 
 ## Menü selbst bauen
@@ -57,7 +57,8 @@ Siehe **COOKBOOK.md**. Ein Eintrag besteht aus einer Zeile:
 |---|---|
 | `src/menu.h` | Datenmodell |
 | `src/core.c` | Menülogik, kein IO, später auch auf dem ESP32 nutzbar |
-| `src/loader.c` | liest und prüft die Menüdatei |
+| `src/loader.c` | liest und prüft die Menüdatei (`.mdf`) |
+| `src/auth.c` | Passwort-Hash (PBKDF2-SHA256), ohne Abhängigkeiten |
 | `src/terminal.c` | Tasten, Bildschirm, Befehle ausführen (nur Mac/Linux) |
 | `tests/test_all.c` | Tests (`make test`) |
 | `Makefile` | bauen, testen, installieren |
@@ -79,7 +80,9 @@ Für den ESP32 wird später nur `terminal.c` ersetzt. Kern und Loader bleiben.
 | 0.3.3 | Einträge kompakt, mit einer Leerzeile dazwischen | fertig |
 | 0.3.4 | Versionsnummer am Rand, Einträge wieder ungefähr mittig | fertig |
 | 0.3.5 | Rahmen aus Farbflächen als Standard, funktioniert mit jeder Schrift | fertig |
-| 0.4 | ESP32-Adapter (serielle Konsole) | offen |
+| 0.9.0 | Menüdefinitionsdatei `.mdf`, Passwortschutz pro Eintrag, Maus, UTC-Uhr, Blackout | fertig, ungetestet auf FreeBSD |
+| 1.0.0 | nach FreeBSD-Test und einigen Tagen Alltagsbetrieb | offen |
+| 1.1.0 | ESP32-Adapter (serielle Konsole) | offen |
 
 ## Regeln, damit das Projekt klein bleibt
 

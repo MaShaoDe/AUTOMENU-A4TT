@@ -9,8 +9,8 @@ Läuft auf macOS, Linux und FreeBSD. Gebraucht wird nur ein C-Compiler (`cc`): a
     make                             # normale Version
     make kiosk                       # Kiosk-Version: Ctrl-C tut nichts
     make test                        # Tests
-    ./automenu mein_menu.txt         # Menü starten
-    ./automenu --check mein_menu.txt # Datei nur prüfen, ohne Menü zu starten
+    ./automenu mein_menu.mdf         # Menü starten
+    ./automenu --check mein_menu.mdf # Datei nur prüfen, ohne Menü zu starten
     ./automenu                       # ohne Datei: Standardpfade (siehe unten)
 
 Tasten: Pfeil hoch/runter und Enter, Ziffern 1 bis 9 springen direkt zum Eintrag und führen ihn aus, Esc oder Backspace gehen ein Menü zurück, H zeigt die Hilfe, Ctrl-C beendet (nicht in der Kiosk-Version).
@@ -40,17 +40,17 @@ Auf FreeBSD später als Port oder Package (`pkg install automenu`).
 |---|---|
 | Programm | `/usr/local/bin/automenu` |
 | Man-Page | `/usr/local/share/man/man1/automenu.1` |
-| Beispielmenü für die Systemkonfiguration | `/usr/local/etc/automenu/menu.txt.sample` |
+| Beispielmenü für die Systemkonfiguration | `/usr/local/etc/automenu/menu.mdf.sample` |
 | Weitere Beispiele | `/usr/local/share/examples/automenu/` |
-| Dein Menü (pro Benutzer) | `~/.config/automenu/menu.txt` |
-| Systemweites Menü | `/usr/local/etc/automenu/menu.txt` |
+| Dein Menü (pro Benutzer) | `~/.config/automenu/menu.mdf` |
+| Systemweites Menü | `/usr/local/etc/automenu/menu.mdf` |
 
-Ohne Dateiangabe sucht `automenu` in dieser Reihenfolge: `$XDG_CONFIG_HOME/automenu/menu.txt`, `~/.config/automenu/menu.txt`, `/usr/local/etc/automenu/menu.txt`. Die erste vorhandene Datei gilt.
+Ohne Dateiangabe sucht `automenu` in dieser Reihenfolge: `$XDG_CONFIG_HOME/automenu/`, `~/.config/automenu/`, `/usr/local/etc/automenu/`. In jedem Ordner zählt zuerst `menu.mdf`, danach `menu.txt` (alter Name, geht weiterhin). Die erste vorhandene Datei gilt.
 
-`make install` überschreibt nie dein Menü. Es legt nur `menu.txt.sample` und die Beispiele ab. Der erste Start geht so:
+`make install` überschreibt nie dein Menü. Es legt nur `menu.mdf.sample` und die Beispiele ab. Der erste Start geht so:
 
     mkdir -p ~/.config/automenu
-    cp /usr/local/share/examples/automenu/menu.txt ~/.config/automenu/menu.txt
+    cp /usr/local/share/examples/automenu/menu.mdf ~/.config/automenu/menu.mdf
     automenu
 
 Auf dem Mac ist `/usr/local` ein üblicher Ort. Wer Homebrew nutzt, kann später eine eigene Formel bekommen. Bis dahin ist `PREFIX=$HOME/.local` die sauberste Lösung, weil nichts im System angefasst wird.
@@ -70,7 +70,7 @@ Getestet auf macOS Golden Gate 27.2 mit dem Terminal von macOS (Apple Silicon, b
    Bei bash liest das Terminal von macOS beim Start `~/.bash_profile`. Damit die `~/.bashrc` gilt, muss dort stehen: `[ -f ~/.bashrc ] && . ~/.bashrc`
 6. **Eigenes Menü anlegen:**
    `mkdir -p ~/.config/automenu` und
-   `cp examples/menu.txt ~/.config/automenu/menu.txt`
+   `cp examples/menu.mdf ~/.config/automenu/menu.mdf`
 7. **Prüfen und starten:** neues Terminalfenster öffnen (oder `hash -r`), dann `automenu --version` und `automenu`.
 
 **Terminal für die Darstellung wie auf den Screenshots einstellen**
@@ -100,9 +100,9 @@ Im Ordner der installierten Version: `make uninstall PREFIX=$HOME/.local`. Dein 
 | Farben olivgrün oder blass | `TERM` steht auf `vt100`. Ab Version 0.3.2 wird das erkannt. Zusätzlich im Profil `xterm-256color` einstellen |
 | Alias wie `ll` funktioniert im Menü nicht | `run` startet `/bin/sh` ohne die eigenen Aliase. Den echten Befehl schreiben, zum Beispiel `ls -alFh` |
 
-## 3. Die Menüdatei
+## 3. Die Menüdatei (.mdf)
 
-Eine Zeile pro Ding. Leerzeilen und Zeilen mit `#` am Anfang werden ignoriert.
+Die Menüdefinitionsdatei (MDF, Menu Definition File) heisst `menu.mdf`. Eine Zeile pro Ding. Leerzeilen und Zeilen mit `#` am Anfang werden ignoriert.
 Das erste Menü der Datei ist das Startmenü.
 
     menu <id> "Titel"                 beginnt ein neues Menü
@@ -121,6 +121,36 @@ Ohne Hilfetext zeigt die Leiste selbst etwas Passendes an, zum Beispiel "Befehl:
 `<id>` ist ein Wort ohne Leerzeichen, zum Beispiel `werkzeuge`.
 Texte in Anführungszeichen dürfen Umlaute enthalten. Die Datei muss UTF-8 sein.
 Windows-Zeilenenden (CRLF) sind kein Problem.
+
+### Einstellungen
+
+Alle optional, am besten oben in der Datei:
+
+    set blackout 300      Schirm nach 300 Sekunden ohne Eingabe schwarz (0 = aus, Standard)
+    set clock utc         Uhr in UTC statt Ortszeit (local = Standard)
+    set mouse off         Maus abschalten (on = Standard)
+
+### Maus
+
+Linksklick auf einen Eintrag führt ihn aus, das Mausrad wählt auf und ab. Ein Klick auf den Schwarzschirm weckt nur auf. Beim Starten eines Befehls ist die Maus aus, damit andere Programme sie normal nutzen können.
+
+### Blackout
+
+Nach der eingestellten Zeit ohne Taste oder Klick wird der Schirm schwarz. Die erste Eingabe weckt nur auf und wird sonst nicht ausgewertet, damit kein Eintrag versehentlich startet.
+
+### Passwortschutz für einzelne Einträge
+
+1. Passwort-Zeile erzeugen (fragt 2 Mal ohne Echo): `automenu --hash admin`
+2. Die ausgegebene Zeile `password admin pbkdf2-sha256:...` in die Datei kopieren, ausserhalb der Menüs.
+3. Beim Eintrag `lock admin` vor den Typ schreiben:
+
+       item "Neustart" "Fragt nach dem Passwort" lock admin run sudo reboot
+
+Ablauf: Eintrag wählen, Fenster "Passwort" erscheint, Eingabe zeigt Sternchen. Bei falschem Passwort kommt eine Meldung. Nach 3 Fehlversuchen geht es zurück ins Menü, mit kurzer Wartezeit. Nach der Ausführung ist der Eintrag wieder gesperrt, es wird immer neu gefragt.
+
+Geschützt wird immer nur der einzelne Eintrag, nie ein ganzes Menü. Wer ein Untermenü schützen will, sperrt den Eintrag, der dorthin führt. Mehrere Passwörter mit verschiedenen Namen sind möglich.
+
+Ehrlich gesagt: Das ist eine Sperre gegen Neugierige und Versehen. Wer die Datei lesen kann, kann den Befehl auch direkt in der Shell ausführen. Sinnvoll ist der Schutz zusammen mit der Kiosk-Version (`make kiosk`) oder auf dem ESP32. Die Datei sollte nur für dich lesbar sein: `chmod 600 menu.mdf`.
 
 ## 4. Rezepte
 
@@ -175,13 +205,13 @@ Mach das Skript vorher ausführbar: `chmod +x ~/bin/backup.sh`.
 1. Kiosk-Version bauen und installieren: `make kiosk && sudo make install`
 2. Am Ende von `~/.profile` eintragen:
 
-       exec /pfad/zu/automenu /pfad/zu/menu.txt
+       exec /pfad/zu/automenu /pfad/zu/menu.mdf
 
 3. Im Menü muss ein `exit`-Eintrag stehen, wenn man wieder rauskommen soll. Ohne `exit` und ohne Ctrl-C gibt es keinen Weg hinaus ausser Abmelden per Konsole von aussen.
 
 ## 5. Wenn etwas nicht geht
 
-`./automenu --check menu.txt` nennt die Zeile mit dem Fehler.
+`./automenu --check menu.mdf` nennt die Zeile mit dem Fehler.
 
 | Meldung | Ursache |
 |---|---|
@@ -193,6 +223,10 @@ Mach das Skript vorher ausführbar: `chmod +x ~/bin/backup.sh`.
 | `unbekannter Typ` | Tippfehler bei `run`, `menu`, `info`, `back`, `exit` |
 | `Syntax: menu <id> "Titel"` | Titel ohne Anführungszeichen |
 | `Hilfetext ohne schliessendes Anführungszeichen` | Bei einem Hilfetext fehlt das zweite `"` |
+| `nutzt unbekanntes Passwort` | Bei `lock` fehlt die passende `password`-Zeile |
+| `Passwort-Hash ungültig` | Hash nicht mit `automenu --hash` erzeugt oder beim Kopieren abgeschnitten |
+| `unbekannte Einstellung` | Tippfehler bei `set blackout`, `set clock`, `set mouse` |
+| Maus reagiert nicht | `set mouse off` in der Datei, oder das Terminal unterstützt keine Mausmeldungen |
 
 ## 6. Gute Gewohnheiten
 
@@ -204,5 +238,5 @@ Mach das Skript vorher ausführbar: `chmod +x ~/bin/backup.sh`.
 ## 7. Die Technik dahinter (nur falls du basteln willst)
 
 - `core.c` kennt nur Ereignisse (hoch, runter, wählen, zurück) und meldet, was ausgeführt werden soll. Es zeichnet nichts und startet nichts.
-- `terminal.c` übersetzt Tasten in Ereignisse, zeichnet den Bildschirm und führt Befehle aus.
-- Für den ESP32 wird nur `terminal.c` durch einen Adapter für die serielle Konsole ersetzt. `loader.c` kann Menüs auch aus einem Textpuffer lesen (`menu_parse_text`), das Menü kann also fest im Flash liegen.
+- `auth.c` prüft Passwörter (PBKDF2-HMAC-SHA256, reines C). `terminal.c` übersetzt Tasten und Mausklicks in Ereignisse, zeichnet den Bildschirm und führt Befehle aus.
+- Für den ESP32 wird nur `terminal.c` durch einen Adapter für die serielle Konsole ersetzt. `loader.c` kann Menüs auch aus einem Textpuffer lesen (`mdf_parse_text`), das Menü kann also fest im Flash liegen.
